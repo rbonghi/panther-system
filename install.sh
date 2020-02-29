@@ -28,6 +28,47 @@ red=`tput setaf 1`
 green=`tput setaf 2`
 reset=`tput sgr0`
 
+ros()
+{
+    local THIS="$(pwd)"
+    local DISTRO="melodic"
+    echo " * ROS Install on ${green}$HOME${reset}"
+    # Install wstool
+    sudo apt-get install python-rosinstall -y
+    echo "   - Make workspace ${green}$HOME${reset}"
+    mkdir -p $HOME/catkin_ws/src
+    # Copy panther wstool and run
+    echo "   - Init rosinstall"
+    # Move to catkin_ws folder
+    cd $HOME/catkin_ws/
+    # Initialize wstool
+    wstool init src
+    wstool merge -t src $THIS/panther.rosinstall
+    # Update workspace
+    wstool update -t src
+    # Catkin make
+    # catkin_make
+    
+    # Return to home folder
+    cd $THIS
+}
+
+udev()
+{
+    local UDEV="/etc/udev/rules.d/"
+
+    echo " * Setup UDEV"
+    echo "   - set dialout to $USER"
+    sudo adduser $USER dialout
+    echo "   - Install all rules in ${green}$UDEV${reset}"
+    # https://unix.stackexchange.com/questions/66901/how-to-bind-usb-device-under-a-static-name
+    sudo cp rules/* $UDEV
+    # Reload all rules and trigger
+    # https://superuser.com/questions/677106/how-to-check-if-a-udev-rule-fired
+    sudo udevadm control --reload-rules
+    sudo udevadm trigger
+}
+
 usage()
 {
 	if [ "$1" != "" ]; then
@@ -45,17 +86,27 @@ usage()
 main()
 {
     local SILENT=false
-    local UDEV="/etc/udev/rules.d/"
+    local ALL=false
+    local UDEV=false
+    local ROS=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
-            -h|--help)
-                # Load help
+            -h|--help) # Load help
                 usage
                 exit 0
                 ;;
             -s|--silent)
                 SILENT=true
+                ;;
+            --all)
+                ALL=true
+                ;;
+            --udev)
+                UDEV=true
+                ;;
+            --ros)
+                ROS=true
                 ;;
             *)
                 usage "[ERROR] Unknown option: $1"
@@ -74,8 +125,7 @@ main()
     while ! $SILENT; do
         read -p "Do you want install panther-system for user:${green}$USER${reset}? [Y/n] " yn
             case $yn in
-                [Yy]* ) # Break and install jetson_stats 
-                        break;;
+                [Yy]* ) break;;
                 [Nn]* ) exit;;
             * ) echo "Please answer yes or no.";;
         esac
@@ -84,16 +134,18 @@ main()
     # Request sudo password
     sudo -v
 
-    echo "-Panther installer for user:$USER"
-    echo "  * set dialout to $USER"
-    sudo adduser $USER dialout
-    sudo cp rules/* $UDEV
-    # Reload all rules and trigger
-    sudo udevadm control --reload-rules
-    sudo udevadm trigger
-    echo "  * Install all rules in ${green}$UDEV${reset}"
+    echo "- User: $USER"
 
+    # Install UDEV
+    if $UDEV || $ALL ; then
+        udev
+    fi
+    # Install ROS
+    if $ROS || $ALL ; then
+        ros
+    fi
 
+    # After install require reboot
     echo "${red}Require reboot${reset}"
 }
 
