@@ -31,23 +31,27 @@ reset=`tput sgr0`
 ros()
 {
     local THIS="$(pwd)"
-    local DISTRO="melodic"
     echo " * ROS Install on ${green}$HOME${reset}"
     # Install wstool
     sudo apt-get install python-rosinstall -y
     echo "   - Make workspace ${green}$HOME${reset}"
     mkdir -p $HOME/catkin_ws/src
     # Copy panther wstool and run
-    echo "   - Init rosinstall"
+    echo "   - Initialization rosinstall"
     # Move to catkin_ws folder
     cd $HOME/catkin_ws/
     # Initialize wstool
+    # https://www.systutorials.com/docs/linux/man/1-wstool/
     wstool init src
     wstool merge -t src $THIS/panther.rosinstall
     # Update workspace
     wstool update -t src
-    # Catkin make
-    # catkin_make
+    echo "   - Install all dependencies and catkin_make"
+    # Install all dependencies
+    # http://wiki.ros.org/rosdep
+    rosdep install --from-paths src --ignore-src -r -y
+    # Catkin make all workspace
+    catkin_make
     
     # Return to home folder
     cd $THIS
@@ -81,6 +85,9 @@ usage()
     echo "options,"
     echo "   -h|--help      | This help"
     echo "   -s|--silent    | Run this script silent"
+    echo "   --all          | Install all parts"
+    echo "   --udev         | Install UDEV rules"
+    echo "   --ros          | Install ROS packages"
 }
 
 main()
@@ -89,6 +96,7 @@ main()
     local ALL=false
     local UDEV=false
     local ROS=false
+    local noflag=true
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -101,12 +109,15 @@ main()
                 ;;
             --all)
                 ALL=true
+                noflag=false
                 ;;
             --udev)
                 UDEV=true
+                noflag=false
                 ;;
             --ros)
                 ROS=true
+                noflag=false
                 ;;
             *)
                 usage "[ERROR] Unknown option: $1"
@@ -119,6 +130,12 @@ main()
 	# Check if run in sudo
     if [[ `id -u` -eq 0 ]] ; then 
         echo "${red}Please don't run as root${reset}"
+        exit 1
+    fi
+    
+    # Check if 
+    if $noflag ; then
+        echo "${red}Please select one or more options!${reset}"
         exit 1
     fi
 
