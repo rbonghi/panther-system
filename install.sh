@@ -150,9 +150,8 @@ main()
 
     # Request sudo password
     sudo -v
-
+    # Recap installatation
     echo "- User: $USER"
-
     # Install UDEV
     if $UDEV || $ALL ; then
         udev
@@ -161,7 +160,6 @@ main()
     if $ROS || $ALL ; then
         ros
     fi
-
     # After install require reboot
     echo "${red}Require reboot${reset}"
 }
