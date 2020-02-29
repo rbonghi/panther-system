@@ -31,9 +31,7 @@ reset=`tput sgr0`
 usage()
 {
 	if [ "$1" != "" ]; then
-    	tput setaf 1
-		echo "$1"
-		tput sgr0
+		echo "${red}$1${reset}"
 	fi
 	
     echo "Panther installer. (Require SUDO) This script install all dependencies and ROS packages"
@@ -86,15 +84,17 @@ main()
     # Request sudo password
     sudo -v
 
-    echo "Panther installer for user:$USER"
-    echo " * set dialout to $USER"
+    echo "-Panther installer for user:$USER"
+    echo "  * set dialout to $USER"
     sudo adduser $USER dialout
-    echo " * Install all rules in ${green}$UDEV${reset}"
     sudo cp rules/* $UDEV
     # Reload all rules and trigger
     sudo udevadm control --reload-rules
     sudo udevadm trigger
+    echo "  * Install all rules in ${green}$UDEV${reset}"
 
+
+    echo "${red}Require reboot${reset}"
 }
 
 
