@@ -5,6 +5,9 @@
     local-name: panther_hardware
     uri: https://github.com/rbonghi/panther_hardware.git
 - git:
+    local-name: ros_jetson_stats
+    uri: https://github.com/rbonghi/ros_jetson_stats.git
+- git:
     local-name: razor_imu_9dof
     uri: https://github.com/KristofRobot/razor_imu_9dof.git
 - git:
