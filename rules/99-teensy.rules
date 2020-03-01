@@ -1,0 +1,5 @@
+# Device Teensy udev definition
+# idVendor  0x16c0
+# idProduct 0x0483
+# Bus 001 Device 024: ID 16c0:0483 Van Ooijen Technische Informatica Teensyduino Serial
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="0483", SYMLINK+="teensy", GROUP="dialout"
