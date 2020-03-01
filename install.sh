@@ -65,14 +65,6 @@ ros()
         echo "   - Add workspace ${green}$ROS_WS${reset} on .bashrc"
         echo "source $HOME/$ROS_WS/devel/setup.bash" >> $HOME/.bashrc
     fi
-    if ! grep -Fxq "export ROS_MASTER_URI=http://$HOSTNAME.local:11311/" $HOME/.bashrc ; then
-        echo "   - Add ${green}ROS_MASTER_URI=http://$HOSTNAME.local:11311/${reset} on .bashrc"
-        echo "export ROS_MASTER_URI=http://$HOSTNAME.local:11311/" >> $HOME/.bashrc
-    fi
-    if ! grep -Fxq "export ROS_HOSTNAME=$HOSTNAME.local" $HOME/.bashrc ; then
-        echo "   - Add ${green}ROS_HOSTNAME=$HOSTNAME.local${reset} on .bashrc"
-        echo "export ROS_HOSTNAME=$HOSTNAME.local" >> $HOME/.bashrc
-    fi
     # Return to home folder
     cd $THIS
 }
@@ -84,6 +76,17 @@ ros_install()
         echo "   - Add ROS $DISTRO source to ${green}.bashrc${reset}"
         echo "source /opt/ros/$DISTRO/setup.bash" >> $HOME/.bashrc
     fi
+    # Add var enviroments
+    if ! grep -Fxq "export ROS_MASTER_URI=http://$HOSTNAME.local:11311/" $HOME/.bashrc ; then
+        echo "   - Add ${green}ROS_MASTER_URI=http://$HOSTNAME.local:11311/${reset} on .bashrc"
+        echo "export ROS_MASTER_URI=http://$HOSTNAME.local:11311/" >> $HOME/.bashrc
+    fi
+    if ! grep -Fxq "export ROS_HOSTNAME=$HOSTNAME.local" $HOME/.bashrc ; then
+        echo "   - Add ${green}ROS_HOSTNAME=$HOSTNAME.local${reset} on .bashrc"
+        echo "export ROS_HOSTNAME=$HOSTNAME.local" >> $HOME/.bashrc
+    fi
+    
+    # TODO: Write at end install to reload bashrc
 }
 
 udev()
