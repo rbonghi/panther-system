@@ -31,21 +31,24 @@ reset=`tput sgr0`
 # Variable to show a message if is require a reboot
 REQUIRE_REBOOT=false
 
+
 ros()
 {
     local THIS="$(pwd)"
+    local DISTRO="melodic"
+    local ROS_WS="catkin_ws"
     echo " * ROS Install on ${green}$HOME${reset}"
     # Install wstool
     sudo apt-get install python-rosinstall -y
     echo "   - Make workspace ${green}$HOME${reset}"
-    mkdir -p $HOME/catkin_ws/src
+    mkdir -p $HOME/$ROS_WS/src
     # Copy panther wstool and run
     echo "   - Initialization rosinstall"
     # Move to catkin_ws folder
-    cd $HOME/catkin_ws/
+    cd $HOME/$ROS_WS/
     # Initialize wstool
     # https://www.systutorials.com/docs/linux/man/1-wstool/
-    if [ ! -f $HOME/catkin_ws/src/.rosinstall ] ; then
+    if [ ! -f $HOME/$ROS_WS/src/.rosinstall ] ; then
         wstool init src
     fi
     wstool merge -t src $THIS/panther.rosinstall
@@ -57,8 +60,30 @@ ros()
     rosdep install --from-paths src --ignore-src -r -y
     # Catkin make all workspace
     catkin_make
+    # Add environment variables on bashrc
+    if ! grep -Fxq "$HOME/$ROS_WS/devel/setup.bash" $HOME/.bashrc ; then
+        echo "   - Add workspace ${green}$ROS_WS${reset} on .bashrc"
+        echo "source $HOME/$ROS_WS/devel/setup.bash" >> $HOME/.bashrc
+    fi
+    if ! grep -Fxq "export ROS_MASTER_URI=http://$HOSTNAME.local:11311/" $HOME/.bashrc ; then
+        echo "   - Add ${green}ROS_MASTER_URI=http://$HOSTNAME.local:11311/${reset} on .bashrc"
+        echo "export ROS_MASTER_URI=http://$HOSTNAME.local:11311/" >> $HOME/.bashrc
+    fi
+    if ! grep -Fxq "export ROS_HOSTNAME=$HOSTNAME.local" $HOME/.bashrc ; then
+        echo "   - Add ${green}ROS_HOSTNAME=$HOSTNAME.local${reset} on .bashrc"
+        echo "export ROS_HOSTNAME=$HOSTNAME.local" >> $HOME/.bashrc
+    fi
     # Return to home folder
     cd $THIS
+}
+
+ros_install()
+{
+    # Add environment variables on bashrc
+    if ! grep -Fxq "source /opt/ros/$DISTRO/setup.bash" $HOME/.bashrc ; then
+        echo "   - Add ROS $DISTRO source to ${green}.bashrc${reset}"
+        echo "source /opt/ros/$DISTRO/setup.bash" >> $HOME/.bashrc
+    fi
 }
 
 udev()
@@ -157,7 +182,9 @@ main()
     sudo -v
     # Recap installatation
     echo "--- Board configuration ---"
-    echo "- User: $USER"
+    echo " - Hostname: $HOSTNAME"
+    echo " - User: $USER"
+    echo " - Home: $HOME"
     echo "---------------------------"
     # Install UDEV
     if $UDEV || $ALL ; then
