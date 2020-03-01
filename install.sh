@@ -28,6 +28,9 @@ red=`tput setaf 1`
 green=`tput setaf 2`
 reset=`tput sgr0`
 
+# Variable to show a message if is require a reboot
+REQUIRE_REBOOT=false
+
 ros()
 {
     local THIS="$(pwd)"
@@ -42,7 +45,9 @@ ros()
     cd $HOME/catkin_ws/
     # Initialize wstool
     # https://www.systutorials.com/docs/linux/man/1-wstool/
-    wstool init src
+    if [ ! -f $HOME/catkin_ws/src/.rosinstall ] ; then
+        wstool init src
+    fi
     wstool merge -t src $THIS/panther.rosinstall
     # Update workspace
     wstool update -t src
@@ -52,7 +57,6 @@ ros()
     rosdep install --from-paths src --ignore-src -r -y
     # Catkin make all workspace
     catkin_make
-    
     # Return to home folder
     cd $THIS
 }
@@ -60,7 +64,6 @@ ros()
 udev()
 {
     local UDEV="/etc/udev/rules.d/"
-
     echo " * Setup UDEV"
     echo "   - set dialout to $USER"
     sudo adduser $USER dialout
@@ -71,6 +74,8 @@ udev()
     # https://superuser.com/questions/677106/how-to-check-if-a-udev-rule-fired
     sudo udevadm control --reload-rules
     sudo udevadm trigger
+    # Require reboot
+    REQUIRE_REBOOT=true
 }
 
 usage()
@@ -160,8 +165,11 @@ main()
     if $ROS || $ALL ; then
         ros
     fi
-    # After install require reboot
-    echo "${red}Require reboot${reset}"
+    
+    if $REQUIRE_REBOOT ; then
+        # After install require reboot
+        echo "${red}Require reboot${reset}"
+    fi
 }
 
 

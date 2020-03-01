@@ -5,5 +5,8 @@
     local-name: panther_hardware
     uri: https://github.com/rbonghi/panther_hardware.git
 - git:
+    local-name: razor_imu_9dof
+    uri: https://github.com/KristofRobot/razor_imu_9dof.git
+- git:
     local-name: zed-ros-wrapper
     uri: https://github.com/stereolabs/zed-ros-wrapper.git
