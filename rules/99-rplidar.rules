@@ -1,4 +1,4 @@
-# Device RP-LIDAR definition
+# Device RP-lidar udev definition
 # idVendor  0x10C4
 # idProduct 0xEA60
 # Bus 001 Device 016: ID 10c4:ea60 Cygnal Integrated Products, Inc. CP210x UART Bridge / myAVR mySmartUSB light

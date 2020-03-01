@@ -1,0 +1,5 @@
+# Device Roboteq control udev definition
+# idVendor  0x20d2
+# idProduct 0x5740
+# Bus 001 Device 022: ID 20d2:5740
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="20d2", ATTRS{idProduct}=="5740", SYMLINK+="roboteq", GROUP="dialout"

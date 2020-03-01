@@ -156,7 +156,9 @@ main()
     # Request sudo password
     sudo -v
     # Recap installatation
+    echo "--- Board configuration ---"
     echo "- User: $USER"
+    echo "---------------------------"
     # Install UDEV
     if $UDEV || $ALL ; then
         udev
