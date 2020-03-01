@@ -69,6 +69,7 @@ ros()
     cd $THIS
 }
 
+
 ros_install()
 {
     # Add environment variables on bashrc
@@ -88,6 +89,7 @@ ros_install()
     
     # TODO: Write at end install to reload bashrc
 }
+
 
 udev()
 {
@@ -122,6 +124,7 @@ usage()
     echo "   --udev         | Install UDEV rules"
     echo "   --ros          | Install ROS packages"
 }
+
 
 main()
 {
@@ -165,10 +168,10 @@ main()
         echo "${red}Please don't run as root${reset}"
         exit 1
     fi
-    
-    # Check if 
+    # Check if there are not options selected
     if $noflag ; then
         echo "${red}Please select one or more options!${reset}"
+        usage
         exit 1
     fi
 
