@@ -1,12 +1,12 @@
 - git:
     local-name: panther
-    uri: https://github.com/rbonghi/panther.git
+    uri: git@github.com:rpanther/panther.git
 - git:
     local-name: panther_hardware
-    uri: https://github.com/rbonghi/panther_hardware.git
+    uri: git@github.com:rpanther/panther_hardware.git
 - git:
     local-name: ros_jetson_stats
-    uri: https://github.com/rbonghi/ros_jetson_stats.git
+    uri: git@github.com:rbonghi/ros_jetson_stats.git
 - git:
     local-name: razor_imu_9dof
     uri: https://github.com/KristofRobot/razor_imu_9dof.git

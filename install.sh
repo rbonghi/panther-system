@@ -30,25 +30,26 @@ reset=`tput sgr0`
 
 # Variable to show a message if is require a reboot
 REQUIRE_REBOOT=false
+DISTRO="melodic"
 
 
-ros()
+ros_ws()
 {
     local THIS="$(pwd)"
-    local DISTRO="melodic"
-    local ROS_WS="catkin_ws"
+    local DISTRO=$1
+    local ROS_WS_NAME="catkin_ws"
     echo " * ROS Install on ${green}$HOME${reset}"
     # Install wstool
     sudo apt-get install python-rosinstall -y
     echo "   - Make workspace ${green}$HOME${reset}"
-    mkdir -p $HOME/$ROS_WS/src
+    mkdir -p $HOME/$ROS_WS_NAME/src
     # Copy panther wstool and run
     echo "   - Initialization rosinstall"
     # Move to catkin_ws folder
-    cd $HOME/$ROS_WS/
+    cd $HOME/$ROS_WS_NAME/
     # Initialize wstool
     # https://www.systutorials.com/docs/linux/man/1-wstool/
-    if [ ! -f $HOME/$ROS_WS/src/.rosinstall ] ; then
+    if [ ! -f $HOME/$ROS_WS_NAME/src/.rosinstall ] ; then
         wstool init src
     fi
     wstool merge -t src $THIS/panther.rosinstall
@@ -61,16 +62,16 @@ ros()
     # Catkin make all workspace
     catkin_make
     # Add environment variables on bashrc
-    if ! grep -Fxq "$HOME/$ROS_WS/devel/setup.bash" $HOME/.bashrc ; then
-        echo "   - Add workspace ${green}$ROS_WS${reset} on .bashrc"
-        echo "source $HOME/$ROS_WS/devel/setup.bash" >> $HOME/.bashrc
+    if ! grep -Fxq "source $HOME/$ROS_WS_NAME/devel/setup.bash" $HOME/.bashrc ; then
+        echo "   - Add workspace ${green}$ROS_WS_NAME${reset} on .bashrc"
+        echo "source $HOME/$ROS_WS_NAME/devel/setup.bash" >> $HOME/.bashrc
     fi
     # Return to home folder
     cd $THIS
 }
 
 
-ros_install()
+ros()
 {
     # Add environment variables on bashrc
     if ! grep -Fxq "source /opt/ros/$DISTRO/setup.bash" $HOME/.bashrc ; then
@@ -88,6 +89,22 @@ ros_install()
     fi
     
     # TODO: Write at end install to reload bashrc
+}
+
+
+versioning()
+{
+    # 1. Set git user and email
+    # 2. Setup key for project
+    
+    # Add github in known_hosts
+    # https://github.com/ome/devspace/issues/38
+    # ssh-keyscan github.com >> ~/.ssh/known_hosts
+    
+    # Fix this warning
+    # Warning: Permanently added the RSA host key for IP address '140.82.118.3' to the list of known hosts.
+    # https://community.atlassian.com/t5/Bitbucket-questions/quot-Warning-Permanently-added-the-RSA-host-key-for-IP-address/qaq-p/28906
+    echo "Versioning"
 }
 
 
@@ -120,9 +137,11 @@ usage()
     echo "options,"
     echo "   -h|--help      | This help"
     echo "   -s|--silent    | Run this script silent"
+    echo "   -d|--distro    | Define ROS distribution Default:${green}$DISTRO${reset}"
     echo "   --all          | Install all parts"
     echo "   --udev         | Install UDEV rules"
-    echo "   --ros          | Install ROS packages"
+    echo "   --ros          | Install ROS ${green}$DISTRO${reset}"
+    echo "   --ros-ws       | Install Panther ROS workspace"
 }
 
 
@@ -132,6 +151,7 @@ main()
     local ALL=false
     local UDEV=false
     local ROS=false
+    local ROS_WS=false
     local noflag=true
 	# Decode all information from startup
     while [ -n "$1" ]; do
@@ -143,6 +163,10 @@ main()
             -s|--silent)
                 SILENT=true
                 ;;
+            -d|--distro)
+                DISTRO=$2
+                shift 1
+                ;;                
             --all)
                 ALL=true
                 noflag=false
@@ -153,6 +177,10 @@ main()
                 ;;
             --ros)
                 ROS=true
+                noflag=false
+                ;;
+            --ros-ws)
+                ROS_WS=true
                 noflag=false
                 ;;
             *)
@@ -175,8 +203,16 @@ main()
         exit 1
     fi
 
+    # Recap installatation
+    echo "--- Board configuration ---"
+    echo " - Hostname: ${green}$HOSTNAME${reset}"
+    echo " - User: ${green}$USER${reset}"
+    echo " - Home: ${green}$HOME${reset}"
+    echo " - ROS Distro: ${green}$DISTRO${reset}"
+    echo "---------------------------"
+    # Ask before start install
     while ! $SILENT; do
-        read -p "Do you want install panther-system for user:${green}$USER${reset}? [Y/n] " yn
+        read -p "Do you want install panther-system? [Y/n] " yn
             case $yn in
                 [Yy]* ) break;;
                 [Nn]* ) exit;;
@@ -186,19 +222,17 @@ main()
 
     # Request sudo password
     sudo -v
-    # Recap installatation
-    echo "--- Board configuration ---"
-    echo " - Hostname: $HOSTNAME"
-    echo " - User: $USER"
-    echo " - Home: $HOME"
-    echo "---------------------------"
     # Install UDEV
     if $UDEV || $ALL ; then
         udev
     fi
     # Install ROS
     if $ROS || $ALL ; then
-        ros
+        ros $DISTRO
+    fi
+    # Install Panther ROS workspace
+    if $ROS_WS || $ALL ; then
+        ros_ws $DISTRO
     fi
     
     if $REQUIRE_REBOOT ; then
