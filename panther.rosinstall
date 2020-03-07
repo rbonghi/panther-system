@@ -8,6 +8,9 @@
     local-name: ros_jetson_stats
     uri: git@github.com:rbonghi/ros_jetson_stats.git
 - git:
+    local-name: roboteq_control
+    uri: git@github.com:rbonghi/roboteq_control.git
+- git:
     local-name: razor_imu_9dof
     uri: https://github.com/KristofRobot/razor_imu_9dof.git
 - git:

@@ -31,7 +31,11 @@ reset=`tput sgr0`
 # Variable to show a message if is require a reboot
 REQUIRE_REBOOT=false
 DISTRO="melodic"
-
+# Components
+ALL=false
+UDEV=false
+ROS=false
+ROS_WS=false
 
 ros_ws()
 {
@@ -110,13 +114,13 @@ versioning()
 
 udev()
 {
-    local UDEV="/etc/udev/rules.d/"
+    local UDEV_FOLDER="/etc/udev/rules.d/"
     echo " * Setup UDEV"
     echo "   - set dialout to $USER"
     sudo adduser $USER dialout
-    echo "   - Install all rules in ${green}$UDEV${reset}"
+    echo "   - Install all rules in ${green}$UDEV_FOLDER${reset}"
     # https://unix.stackexchange.com/questions/66901/how-to-bind-usb-device-under-a-static-name
-    sudo cp rules/* $UDEV
+    sudo cp rules/* $UDEV_FOLDER
     # Reload all rules and trigger
     # https://superuser.com/questions/677106/how-to-check-if-a-udev-rule-fired
     sudo udevadm control --reload-rules
@@ -124,6 +128,7 @@ udev()
     # Require reboot
     REQUIRE_REBOOT=true
 }
+
 
 usage()
 {
@@ -145,13 +150,23 @@ usage()
 }
 
 
+list_components()
+{
+    if $UDEV || $ALL ; then
+        echo " * udev"
+    fi
+    if $ROS || $ALL ; then
+        echo " * ros"
+    fi
+    if $ROS_WS || $ALL ; then
+        echo " * ros-ws"
+    fi
+}
+
+
 main()
 {
     local SILENT=false
-    local ALL=false
-    local UDEV=false
-    local ROS=false
-    local ROS_WS=false
     local noflag=true
 	# Decode all information from startup
     while [ -n "$1" ]; do
@@ -210,6 +225,9 @@ main()
     echo " - Home: ${green}$HOME${reset}"
     echo " - ROS Distro: ${green}$DISTRO${reset}"
     echo "---------------------------"
+    echo " Installing list:"
+    list_components
+    echo "---------------------------"
     # Ask before start install
     while ! $SILENT; do
         read -p "Do you want install panther-system? [Y/n] " yn
@@ -235,6 +253,9 @@ main()
         ros_ws $DISTRO
     fi
     
+    echo "---------------------------"
+    echo " Installed:"
+    list_components
     if $REQUIRE_REBOOT ; then
         # After install require reboot
         echo "${red}Require reboot${reset}"
