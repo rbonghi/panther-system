@@ -29,11 +29,11 @@ green=`tput setaf 2`
 reset=`tput sgr0`
 
 # Catkin main package
-ROS_WS_NAME="catkin_ws"
 PANTHER_REPO="$HOME/panther-system"
 
-main()
+update()
 {
+    local ROS_WS_NAME=$1
     local THIS="$(pwd)"
     local path="$HOME/$ROS_WS_NAME"
     # Merge if there are update of repositories
@@ -49,6 +49,48 @@ main()
     catkin_make
     # Return to main path
     cd $THIS
+}
+
+usage()
+{
+	if [ "$1" != "" ]; then
+		echo "${red}$1${reset}"
+	fi
+	
+    echo "updater. Update workspace, repositories and dependencies"
+    echo "Usage:"
+    echo "$0 [options]"
+    echo "options,"
+    echo "   -h|--help      | This help"
+}
+
+main()
+{
+    local ROS_WS_NAME="catkin_ws"
+	# Decode all information from startup
+    while [ -n "$1" ]; do
+        case "$1" in
+            -h|--help) # Load help
+                usage
+                exit 0
+                ;;
+            *)
+                usage "[ERROR] Unknown option: $1"
+                exit 1
+            ;;
+        esac
+            shift 1
+    done
+
+	# Check if run in sudo
+    if [[ `id -u` -eq 0 ]] ; then 
+        echo "${red}Please don't run as root${reset}"
+        exit 1
+    fi
+    # Request sudo password
+    sudo -v
+    # Run update function    
+    update $ROS_WS_NAME
 }
 
 main $@
