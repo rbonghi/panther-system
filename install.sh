@@ -38,6 +38,7 @@ ZED=false
 ROS=false
 ROS_WS=false
 
+
 ros_ws()
 {
     local THIS="$(pwd)"
@@ -99,6 +100,7 @@ ros()
     # TODO: Write at end install to reload bashrc
 }
 
+
 ros_status()
 {
     if [ ! -z "ROS_DISTRO" ] ; then
@@ -124,6 +126,7 @@ versioning()
     # https://community.atlassian.com/t5/Bitbucket-questions/quot-Warning-Permanently-added-the-RSA-host-key-for-IP-address/qaq-p/28906
     echo "Versioning"
 }
+
 
 zed()
 {
@@ -181,7 +184,7 @@ udev()
     sudo udevadm trigger
     # Require reboot
     if [ ! -f /var/run/reboot-required ] ; then
-        sudo touch /var/run/reboot-required
+        sudo sh -c 'echo "*** System Restart Required ***" > /var/run/reboot-required'
     fi
 }
 
