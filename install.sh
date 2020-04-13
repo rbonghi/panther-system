@@ -33,6 +33,7 @@ DISTRO="melodic"
 ZED_VERSION="3.1"
 # Components
 ALL=false
+SUDOERS=false
 UDEV=false
 ZED=false
 ROS=false
@@ -188,6 +189,23 @@ udev()
     fi
 }
 
+sudoers_rules()
+{
+    echo " * Install sudo-ers rules"
+    # Backup of sudoers file and change the backup file.
+    sudo cp /etc/sudoers /tmp/sudoers.bak
+    echo "$USER ALL=(ALL) NOPASSWD:/sbin/shutdown, /sbin/reboot" | sudo tee -a /tmp/sudoers.bak > /dev/null
+
+    # Check syntax of the backup file to make sure it is correct.
+    sudo visudo -cf /tmp/sudoers.bak > /dev/null
+    if [ $? -eq 0 ]; then
+      # Replace the sudoers file with the new only if syntax is correct.
+      sudo cp /tmp/sudoers.bak /etc/sudoers
+      echo "   - ${green}suoders rules added for /sbin/shutdown, /sbin/reboot${reset}"
+    else
+      echo "${red}Could not modify /etc/sudoers file. Please do this manually.${reset}"
+    fi
+}
 
 usage()
 {
@@ -203,6 +221,7 @@ usage()
     echo "   -s|--silent    | Run this script silent"
     echo "   -d|--distro    | Define ROS distribution Default:${green}$DISTRO${reset}"
     echo "   --all          | Install all parts"
+    echo "   --sudo-ers     | Install sudo-ers rules (shutdown and reboot without pass)"
     echo "   --udev         | Install UDEV rules"
     echo "   --zed          | Install or update ZED drivers"
     echo "   --ros          | Install ROS ${green}$DISTRO${reset}"
@@ -212,6 +231,9 @@ usage()
 
 list_components()
 {
+    if $SUDOERS || $ALL ; then
+        echo " * sudoers rules"
+    fi
     if $UDEV || $ALL ; then
         echo " * udev"
     fi
@@ -247,6 +269,10 @@ main()
                 ;;                
             --all)
                 ALL=true
+                noflag=false
+                ;;
+            --sudo-ers)
+                SUDOERS=true
                 noflag=false
                 ;;
             --udev)
@@ -308,6 +334,10 @@ main()
 
     # Request sudo password
     sudo -v
+    # Install SUDOERS
+    if $SUDOERS || $ALL ; then
+        sudoers_rules
+    fi
     # Install UDEV
     if $UDEV || $ALL ; then
         udev
