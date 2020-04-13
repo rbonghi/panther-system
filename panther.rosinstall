@@ -16,3 +16,6 @@
 - git:
     local-name: zed-ros-wrapper
     uri: https://github.com/stereolabs/zed-ros-wrapper.git
+- git:
+    local-name: ros_webconsole
+    uri: git@github.com:rbonghi/ros_webconsole.git
