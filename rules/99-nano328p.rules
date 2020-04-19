@@ -1,0 +1,5 @@
+# Device Teensy udev definition
+# idVendor  0x0403
+# idProduct 0x0000
+# Bus 001 Device 014: ID 0403:0000 Future Technology Devices International, Ltd H4SMK 7 Port Hub / Bricked Counterfeit FT232 Serial (UART) IC
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="0000", SYMLINK+="nano328p", GROUP="dialout"
