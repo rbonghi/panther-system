@@ -173,7 +173,7 @@ udev()
 {
     local UDEV_FOLDER="/etc/udev/rules.d/"
     echo " * Setup UDEV"
-    echo "   - set ${green}[dialout, input]{reset} to $USER"
+    echo "   - set ${green}[dialout, input]${reset} to $USER"
     sudo adduser $USER dialout
     sudo adduser $USER input
     echo "   - Install all rules in ${green}$UDEV_FOLDER${reset}"
