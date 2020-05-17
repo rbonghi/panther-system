@@ -97,7 +97,10 @@ ros()
         echo "   - Add ${green}ROS_HOSTNAME=$HOSTNAME.local${reset} on .bashrc"
         echo "export ROS_HOSTNAME=$HOSTNAME.local" >> $HOME/.bashrc
     fi
-    
+    if ! grep -Fxq "export EDITOR='nano -w'" $HOME/.bashrc ; then
+        echo "   - Add ${green}EDITOR nano${reset} nn .bashrc"
+        echo "export EDITOR='nano -w'" >> $HOME/.bashrc
+    fi
     # TODO: Write at end install to reload bashrc
 }
 

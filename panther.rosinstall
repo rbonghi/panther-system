@@ -19,3 +19,6 @@
 - git:
     local-name: ros_webconsole
     uri: git@github.com:rbonghi/ros_webconsole.git
+- git:
+    local-name: ros_orchestrator
+    uri: git@github.com:rbonghi/ros_orchestrator.git
