@@ -24,77 +24,74 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+bold=`tput bold`
 red=`tput setaf 1`
 green=`tput setaf 2`
 reset=`tput sgr0`
 
-# Catkin main package
-PANTHER_REPO="$HOME/panther-system"
+ROBOT_NAME="panther"
 
-update()
+deactivate()
 {
-    local ROS_WS_NAME=$1
-    local THIS="$(pwd)"
-    local path="$HOME/$ROS_WS_NAME"
-    # Merge if there are update of repositories
-    wstool merge -t "$path/src" $PANTHER_REPO/panther/robot.rosinstall
-    # Update workspace
-    wstool update -t "$path/src"
-    # Install all dependencies
-    # http://wiki.ros.org/rosdep
-    rosdep install --from-paths "$path/src" --ignore-src -r -y
-    # Go to catkin path
-    cd $path
-    # Catkin make all workspace
-    catkin_make
-    # Return to main path
-    cd $THIS
-}
-
-usage()
-{
-	if [ "$1" != "" ]; then
-		echo "${red}$1${reset}"
-	fi
-	
-    echo "updater. Update workspace, repositories and dependencies"
-    echo "Usage:"
-    echo "$0 [options]"
-    echo "options,"
-    echo "   -h|--help      | This help"
-}
-
-main()
-{
-    local ROS_WS_NAME="catkin_ws"
-	# Decode all information from startup
-    while [ -n "$1" ]; do
-        case "$1" in
-            -h|--help) # Load help
-                usage
-                exit 0
-                ;;
-            *)
-                usage "[ERROR] Unknown option: $1"
-                exit 1
-            ;;
-        esac
-            shift 1
-    done
-
-	# Check if run in sudo
-    if [[ `id -u` -eq 0 ]] ; then 
-        echo "${red}Please don't run as root${reset}"
-        exit 1
+    # Restore old ROS_MASTER_URI
+    if ! [ -z "${_OLD_ROS_MASTER_URI+_}" ] ; then
+        ROS_MASTER_URI="$_OLD_ROS_MASTER_URI"
+        export ROS_MASTER_URI
+        unset _OLD_ROS_MASTER_URI
     fi
-    # Request sudo password
-    sudo -v
-    # Run update function    
-    update $ROS_WS_NAME
+    # Restore old ROS_HOSTNAME if exist
+    if ! [ -z "${_OLD_ROS_HOSTNAME+_}" ] ; then
+        ROS_HOSTNAME="$_OLD_ROS_HOSTNAME"
+        export ROS_HOSTNAME
+        unset _OLD_ROS_HOSTNAME
+    else
+        unset ROS_HOSTNAME
+    fi
+
+    # Restore old virtual PS1
+    if ! [ -z "${_OLD_VIRTUAL_PS1+_}" ] ; then
+        PS1="$_OLD_VIRTUAL_PS1"
+        export PS1
+        unset _OLD_VIRTUAL_PS1
+    fi
 }
 
-main $@
-exit 0
+# unset irrelevant variables
+deactivate nondestructive
+
+_OLD_ROS_MASTER_URI="$ROS_MASTER_URI"
+# Setup ROS MASTER URI
+ROS_MASTER_URI="http://$ROBOT_NAME.local:11311"
+export ROS_MASTER_URI
+
+if [ ! -z ${ROS_HOSTNAME+x} ] ; then
+    _OLD_ROS_HOSTNAME="$ROS_HOSTNAME"
+fi
+# Setup ROS HOSTNAME
+ROS_HOSTNAME="$HOSTNAME.local"
+export ROS_HOSTNAME
+
+# Setup PS1
+_OLD_VIRTUAL_PS1="$PS1"
+if [ "x" != x ] ; then
+    PS1="$PS1"
+else
+    PS1="($ROBOT_NAME) $PS1"
+fi
+export PS1
+
+#echo "--- ROBOT ENV ---"
+#echo "${bold}ROS_MASTER_URI${reset}=${green}$ROS_MASTER_URI${reset}"
+#echo "${bold}ROS_HOSTNAME${reset}=${green}$ROS_HOSTNAME${reset}"
+#echo "-----------------"
+
+# This should detect bash and zsh, which have a hash command that must
+# be called to get it to forget past commands.  Without forgetting
+# past commands the $PATH changes we made may not be respected
+if [ -n "${BASH-}" ] || [ -n "${ZSH_VERSION-}" ] ; then
+    hash -r 2>/dev/null
+fi
 
 # EOF
 
