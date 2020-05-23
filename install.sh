@@ -30,6 +30,7 @@ reset=`tput sgr0`
 
 # Variable to show a message if is require a reboot
 DISTRO="melodic"
+ROSINSTALL="robot"
 ZED_VERSION="3.1"
 # Components
 ALL=false
@@ -59,7 +60,7 @@ ros_ws()
     if [ ! -f $HOME/$ROS_WS_NAME/src/.rosinstall ] ; then
         wstool init src
     fi
-    wstool merge -t src $THIS/panther.rosinstall
+    wstool merge -t src $THIS/panther/$ROSINSTALL.rosinstall
     # Update workspace
     wstool update -t src
     echo "   - Install all dependencies and catkin_make"
@@ -228,7 +229,7 @@ usage()
     echo "   --udev         | Install UDEV rules"
     echo "   --zed          | Install or update ZED drivers"
     echo "   --ros          | Install ROS ${green}$DISTRO${reset}"
-    echo "   --ros-ws       | Install Panther ROS workspace"
+    echo "   --ros-ws       | [type] (default=robot) Install Panther ROS workspace"
 }
 
 
@@ -247,7 +248,7 @@ list_components()
         echo " * zed"
     fi
     if $ROS_WS || $ALL ; then
-        echo " * ros-ws"
+        echo " * ros-ws rosinstall=${green}$ROSINSTALL${reset} (robot, simulation)"
     fi
 }
 
@@ -293,6 +294,10 @@ main()
             --ros-ws)
                 ROS_WS=true
                 noflag=false
+                if [ ! -z $2 ] ; then
+                    ROSINSTALL=$2
+                    shift 1
+                fi
                 ;;
             *)
                 usage "[ERROR] Unknown option: $1"
@@ -355,7 +360,7 @@ main()
     fi
     # Install Panther ROS workspace
     if $ROS_WS || $ALL ; then
-        ros_ws $DISTRO
+        ros_ws $DISTRO $ROSINSTALL
     fi
     
     echo "---------------------------"
@@ -363,7 +368,7 @@ main()
     list_components
     if [ -f /var/run/reboot-required ] ; then
         # After install require reboot
-        echo "${red}Require reboot${reset}"
+        echo "${red}*** System Restart Required ***${reset}"
     fi
 }
 

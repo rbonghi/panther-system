@@ -37,7 +37,7 @@ update()
     local THIS="$(pwd)"
     local path="$HOME/$ROS_WS_NAME"
     # Merge if there are update of repositories
-    wstool merge -t "$path/src" $PANTHER_REPO/panther.rosinstall
+    wstool merge -t "$path/src" $PANTHER_REPO/panther/robot.rosinstall
     # Update workspace
     wstool update -t "$path/src"
     # Install all dependencies
