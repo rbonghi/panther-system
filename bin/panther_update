@@ -30,15 +30,15 @@ green=`tput setaf 2`
 reset=`tput sgr0`
 
 # Catkin main package
-PANTHER_REPO="$HOME/panther-system"
+ROS_WS_NAME="catkin_ws"
 
 update()
 {
-    local ROS_WS_NAME=$1
+    local rosinstall=$1
     local THIS="$(pwd)"
     local path="$HOME/$ROS_WS_NAME"
     # Merge if there are update of repositories
-    wstool merge -t "$path/src" $PANTHER_REPO/panther/robot.rosinstall
+    wstool merge -t "$path/src" $rosinstall
     # Update workspace
     wstool update -t "$path/src"
     # Install all dependencies
@@ -67,7 +67,6 @@ usage()
 
 main()
 {
-    local ROS_WS_NAME="catkin_ws"
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -88,10 +87,19 @@ main()
         echo "${red}Please don't run as root${reset}"
         exit 1
     fi
-    # Request sudo password
-    sudo -v
+    
+    # Extract rosinstall uri
+    if [ "$PANTHER_TYPE" = "sim" ] ; then
+        rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther_simulation/master/simulation.rosinstall"
+    elif [ "$PANTHER_TYPE" = "robot" ] ; then
+        rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther_robot/master/robot.rosinstall"
+    else
+        usage "[ERROR] Unknown config: $PANTHER_TYPE"
+        exit 1
+    fi
+
     # Run update function    
-    update $ROS_WS_NAME
+    update $rosinstall_uri
 }
 
 main $@
