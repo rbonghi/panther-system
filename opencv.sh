@@ -33,10 +33,9 @@ reset=`tput sgr0`
 OPENCV_VERSION=$JETSON_OPENCV
 INSTALL_OPENCV_PATH="/usr/local"
 INSTALL_OPENCV_CONTRIB="YES"
-INSTALL_OPENCV_EXTRA="YES"
 INSTALL_OPENCV_PYTHON2="YES"
 INSTALL_OPENCV_PYTHON3="YES"
-BUILD_FOLDER="$HOME"
+BUILD_FOLDER=$HOME
 FORCE=false
 
 
@@ -58,10 +57,7 @@ opencv_downloader()
     if [ $INSTALL_OPENCV_PYTHON3 == "YES" ] ; then
         sudo apt-get install -y python3-dev python3-numpy python3-matplotlib
     fi
-
-    ### Download last stable opencv source code
-    echo "${green}Download OpenCV $OPENCV_VERSION source code in $BUILD_FOLDER${reset}"
-
+    # Check if exists sources
     if [ -d "$BUILD_FOLDER/opencv" ]; then
         if ! $FORCE ; then
             echo "${red}Folder $BUILD_FOLDER/opencv already exist${reset}"
@@ -71,6 +67,8 @@ opencv_downloader()
             sudo rm -R "$BUILD_FOLDER/opencv"
         fi
     fi
+    # Download last stable opencv source code
+    echo "${green}Download OpenCV $OPENCV_VERSION source code in $BUILD_FOLDER${reset}"
     # Make folder and clone
     mkdir -p $BUILD_FOLDER
     cd $BUILD_FOLDER
@@ -82,13 +80,6 @@ opencv_downloader()
         echo "Installing opencv_contrib"
         git clone https://github.com/opencv/opencv_contrib.git
         cd opencv_contrib
-        git checkout -b v${OPENCV_VERSION} ${OPENCV_VERSION}
-        cd ..
-    fi
-    if [ $INSTALL_OPENCV_EXTRA == "YES" ] ; then
-        echo "Installing opencv_extras"
-        git clone https://github.com/opencv/opencv_extra.git
-        cd opencv_extra
         git checkout -b v${OPENCV_VERSION} ${OPENCV_VERSION}
         cd ..
     fi
@@ -215,6 +206,7 @@ usage()
 main()
 {
     local SILENT=false
+    local CLEAN_SOURCES=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -311,7 +303,9 @@ main()
     # Make and install
     opencv_make_install
     # remove source folder
-    
+    if $CLEAN_SOURCES ; then
+        opencv_remove_sources
+    fi
     # Restore previuous folder
     cd $LOCAL_FOLDER
 }
