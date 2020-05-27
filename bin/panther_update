@@ -62,11 +62,13 @@ usage()
     echo "Usage:"
     echo "$0 [options]"
     echo "options,"
-    echo "   -h|--help      | This help"
+    echo "   -h|--help        | This help"
+    echo "   -f|--file [FILE] | File to read"
 }
 
 main()
 {
+    local rosinstall_file=""
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -74,10 +76,14 @@ main()
                 usage
                 exit 0
                 ;;
+            -f|--file)
+                rosinstall_file=$2
+                shift 1
+                ;;
             *)
                 usage "[ERROR] Unknown option: $1"
                 exit 1
-            ;;
+                ;;
         esac
             shift 1
     done
@@ -88,8 +94,11 @@ main()
         exit 1
     fi
     
+    # Check if rosinstall file is not empty
+    if [ ! -z $rosinstall_file ] ; then
+        rosinstall_uri=$rosinstall_file
     # Extract rosinstall uri
-    if [ "$PANTHER_TYPE" = "sim" ] ; then
+    elif [ "$PANTHER_TYPE" = "sim" ] ; then
         rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther_simulation/master/simulation.rosinstall"
     elif [ "$PANTHER_TYPE" = "robot" ] ; then
         rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther_robot/master/robot.rosinstall"
