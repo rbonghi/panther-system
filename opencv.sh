@@ -30,21 +30,18 @@ green=`tput setaf 2`
 yellow=`tput setaf 3`
 reset=`tput sgr0`
 
+OPENCV_VERSION=$JETSON_OPENCV
 INSTALL_OPENCV_PATH="/usr/local"
 INSTALL_OPENCV_CONTRIB="YES"
 INSTALL_OPENCV_EXTRA="YES"
 INSTALL_OPENCV_PYTHON2="YES"
 INSTALL_OPENCV_PYTHON3="YES"
+BUILD_FOLDER="$HOME"
+FORCE=false
 
 
-opencv_installer()
+opencv_downloader()
 {
-    local NUM_CPU=$(nproc)
-    # Local variables
-    local LOCAL_FOLDER=$(pwd)
-    local OPENCV_VERSION=$1
-    local BUILD_FOLDER=$2
-    
     echo "${green}Install dependencies for $OPENCV_VERSION${reset}"
     # Install dependencies
     sudo apt-get install -y build-essential cmake git gfortran pkg-config \
@@ -63,8 +60,18 @@ opencv_installer()
     fi
 
     ### Download last stable opencv source code
-    echo "${green}Download OpenCV $OPENCV_VERSION source code in $opencv_source_path${reset}"
+    echo "${green}Download OpenCV $OPENCV_VERSION source code in $BUILD_FOLDER${reset}"
 
+    if [ -d "$BUILD_FOLDER/opencv" ]; then
+        if ! $FORCE ; then
+            echo "${red}Folder $BUILD_FOLDER/opencv already exist${reset}"
+            exit 1
+        else
+            echo "${yellow}Remove old source OpenCV folder${reset}"
+            sudo rm -R "$BUILD_FOLDER/opencv"
+        fi
+    fi
+    # Make folder and clone
     mkdir -p $BUILD_FOLDER
     cd $BUILD_FOLDER
     git clone https://github.com/opencv/opencv.git
@@ -85,85 +92,106 @@ opencv_installer()
         git checkout -b v${OPENCV_VERSION} ${OPENCV_VERSION}
         cd ..
     fi
-        
-    echo "Build openCV $JETSON_DESCRIPTION for $JETSON_DESCRIPTION ${bold}($JETSON_CUDA_ARCH_BIN)${reset}"
-    if [ -d "build" ] ; then
+}
+
+
+opencv_build()
+{
+    echo "Build openCV ${bold}$OPENCV_VERSION${reset} for $JETSON_MACHINE ${bold}($JETSON_CUDA_ARCH_BIN)${reset}"
+    if [ -d "$BUILD_FOLDER/opencv/build" ] ; then
         echo "${yellow}Clean old Build folder${reset}"
-        rm -R build
+        rm -R "$BUILD_FOLDER/opencv/build"
     fi
-    mkdir build 
-    cd build
+    mkdir -p "$BUILD_FOLDER/opencv/build" 
+    cd "$BUILD_FOLDER/opencv/build"
 
     # CMAKE
     local CMAKEFLAGS="
-        -D CMAKE_BUILD_TYPE=RELEASE
-        -D CMAKE_INSTALL_PREFIX=$INSTALL_OPENCV_PATH
-        -D WITH_CUDA=ON
-        -D CUDA_ARCH_BIN=$JETSON_CUDA_ARCH_BIN
-        -D CUDA_ARCH_PTX=''
-        -D WITH_CUBLAS=ON
-        -D ENABLE_FAST_MATH=ON
-        -D CUDA_FAST_MATH=ON
-        -D ENABLE_NEON=ON
-        -D WITH_LIBV4L=ON
-        -D BUILD_TESTS=OFF
-        -D BUILD_PERF_TESTS=OFF
-        -D BUILD_EXAMPLES=OFF
-        -D WITH_GSTREAMER=ON
-        -D WITH_GSTREAMER_0_10=OFF
-        -D WITH_QT=ON
-        -D WITH_OPENGL=ON
-        -D EIGEN_INCLUDE_PATH=/usr/include/eigen3
-        -D WITH_GSTREAMER=ON
-        -D OPENCV_GENERATE_PKGCONFIG=ON"
+-D CMAKE_BUILD_TYPE=RELEASE
+-D CMAKE_INSTALL_PREFIX=$INSTALL_OPENCV_PATH
+-D WITH_CUDA=ON
+-D CUDA_ARCH_BIN=$JETSON_CUDA_ARCH_BIN
+-D CUDA_ARCH_PTX=''
+-D WITH_CUBLAS=ON
+-D ENABLE_FAST_MATH=ON
+-D CUDA_FAST_MATH=ON
+-D ENABLE_NEON=ON
+-D WITH_LIBV4L=ON
+-D BUILD_TESTS=OFF
+-D BUILD_PERF_TESTS=OFF
+-D BUILD_EXAMPLES=OFF
+-D WITH_GSTREAMER=ON
+-D WITH_GSTREAMER_0_10=OFF
+-D WITH_QT=ON
+-D WITH_OPENGL=ON
+-D EIGEN_INCLUDE_PATH=/usr/include/eigen3
+-D WITH_GSTREAMER=ON
+-D OPENCV_GENERATE_PKGCONFIG=ON"
         # TODO: Check "-D OPENCV_ENABLE_NONFREE=ON"
-        if [ $INSTALL_OPENCV_CUDNN == "YES" ] ; then
-            CMAKEFLAGS=$CMAKEFLAGS+"-D WITH_CUDNN=ON
-                                    -D OPENCV_DNN_CUDA=ON
-                                    -D CUDNN_VERSION='8.0'"
-        fi
-        if [ $INSTALL_OPENCV_PYTHON2 == "YES" ] ; then
-            CMAKEFLAGS=$CMAKEFLAGS+"-D BUILD_opencv_python2=ON"
-        fi
-        if [ $INSTALL_OPENCV_PYTHON3 == "YES" ] ; then
-            CMAKEFLAGS=$CMAKEFLAGS+"-D BUILD_opencv_python3=ON"
-        fi
         if [ $INSTALL_OPENCV_CONTRIB == "YES" ] ; then
-            CMAKEFLAGS=$CMAKEFLAGS+"-D OPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules"
+            CMAKEFLAGS="$CMAKEFLAGS
+-D OPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules"
         fi
         if [ $INSTALL_OPENCV_EXTRA == "YES" ] ; then
-            CMAKEFLAGS=$CMAKEFLAGS+"-D INSTALL_TESTS=ON
-                                    -D OPENCV_TEST_DATA_PATH=../opencv_extra/testdata"
+            CMAKEFLAGS="$CMAKEFLAGS
+-D INSTALL_TESTS=ON 
+-D OPENCV_TEST_DATA_PATH=../opencv_extra/testdata"
         fi
-    echo $CMAKEFLAGS
-    exit 0
-
-    time cmake $CMAKEFLAGS
+        if [ $JETSON_CUDNN != "NOT_INSTALLED" ] ; then
+            CUDNN_VERSION=${JETSON_CUDNN%.*}
+            CUDNN_VERSION=${CUDNN_VERSION%.*}
+            CMAKEFLAGS="$CMAKEFLAGS
+-D WITH_CUDNN=ON
+-D OPENCV_DNN_CUDA=ON
+-D CUDNN_VERSION=$CUDNN_VERSION"
+        fi
+        if [ $INSTALL_OPENCV_PYTHON2 == "YES" ] ; then
+            CMAKEFLAGS="$CMAKEFLAGS
+-D BUILD_opencv_python2=ON"
+        fi
+        if [ $INSTALL_OPENCV_PYTHON3 == "YES" ] ; then
+            CMAKEFLAGS="$CMAKEFLAGS
+-D BUILD_opencv_python3=ON"
+        fi
+   
+    echo "cmake $CMAKEFLAGS .."
+    time cmake $CMAKEFLAGS ..
 
     if [ $? -eq 0 ] ; then
-        echo "CMake configuration make successful"
+        echo "${green}CMake configuration make successful${reset}"
     else
-      # Try to make again
-      echo "${red}CMake issues " >&2
-      echo "Please check the configuration being used${reset}"
-      exit 1
+        # Try to make again
+        echo "${red}CMake issues"
+        echo "Please check the configuration being used${reset}"
+        exit 1
     fi
-    
-    echo "Make openCV $OPENCV_VERSION with $NUM_CPU CPU"
+}
+
+
+opencv_make_install()
+{
+    local NUM_CPU=$(nproc)
+
+    cd "$BUILD_FOLDER/opencv/build"
+
+    echo "${bold}Make${reset} openCV $OPENCV_VERSION with $NUM_CPU CPU"
     time make -j$(($NUM_CPU - 1))
+
+    echo "${bold}Test${reset} openCV make"
+    time make test
     
-    echo "Make install openCV $OPENCV_VERSION"
+    echo "${bold}Make${reset} install openCV $OPENCV_VERSION"
     sudo make install
     
-    echo "ldconfig"
+    echo "${bold}ldconfig${reset}"
     sudo ldconfig
-    
-    echo "Remove OpenCV $OPENCV_VERSION source code in $opencv_source_path"
-    cd $PATCH_OPENCV_SOURCE_PATH
-    sudo rm -R opencv
+}
 
-    # Restore previuous folder
-    cd $LOCAL_FOLDER
+
+opencv_remove_sources()
+{
+    echo "${green}Remove OpenCV sources${reset} from $BUILD_FOLDER/opencv"
+    sudo rm -R "$BUILD_FOLDER/opencv"
 }
 
 
@@ -186,10 +214,7 @@ usage()
 
 main()
 {
-    local OPENCV_VERSION=$JETSON_OPENCV
     local SILENT=false
-    local NOCHECK=false
-    local BUILD_FOLDER="/tmp"
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -199,6 +224,9 @@ main()
                 ;;
             -s|--silent)
                 SILENT=true
+                ;;
+            --force)
+                FORCE=true
                 ;;
             -ocv|--ocv-version)
                 OPENCV_VERSION=$2
@@ -243,31 +271,49 @@ main()
     fi
 
     # Make info table
-    echo "----- Installation -----"
-    echo "$JETSON_MACHINE [$JETSON_L4T]"
-    echo "CUDA $JETSON_CUDA (ARCH BIN) $JETSON_CUDA_ARCH_BIN"
-    echo "cuDNN $JETSON_CUDNN"
-    # OpenCV version
-    if [ $JETSON_OPENCV != $OPENCV_VERSION ] ; then
-        echo "Change OpenCV from $JETSON_OPENCV -> ${bold}$OPENCV_VERSION${reset}"
-    else
-        echo "Install OpenCV ${bold}$OPENCV_VERSION${reset}"
+    if ! $SILENT ; then
+        echo "----- Installation -----"
+        if $FORCE ; then
+            echo "${red}FORCE MODE ON${reset}"
+        fi
+        echo "$JETSON_MACHINE [$JETSON_L4T]"
+        echo "${green}CUDA${reset} $JETSON_CUDA (ARCH BIN) $JETSON_CUDA_ARCH_BIN"
+        echo "${green}cuDNN${reset} $JETSON_CUDNN"
+        # OpenCV version
+        if [ $JETSON_OPENCV != $OPENCV_VERSION ] ; then
+            echo "Change ${green}OpenCV${reset} from $JETSON_OPENCV -> ${bold}$OPENCV_VERSION${reset}"
+        else
+            echo "Install OpenCV ${bold}$OPENCV_VERSION${reset}"
+        fi
+        echo "OpenCV build ${green}folder${reset} ${bold}$BUILD_FOLDER${reset}"
+        echo " - ${green}contrib${reset} $INSTALL_OPENCV_CONTRIB"
+        echo " - ${green}extra${reset} $INSTALL_OPENCV_EXTRA"
+        echo " - ${green}python2${reset} $INSTALL_OPENCV_PYTHON2"
+        echo " - ${green}python3${reset} $INSTALL_OPENCV_PYTHON3"
+        echo "------------------------"
     fi
-    echo "OpenCV build folder $BUILD_FOLDER"
-    echo "------------------------"
-
     # Ask before start install
     while ! $SILENT; do
         read -p "Do you want install OpenCV ${bold}$OPENCV_VERSION${reset}? [Y/n] " yn
             case $yn in
                 [Yy]* ) break;;
-                [Nn]* ) exit;;
+                [Nn]* ) exit 1;;
             * ) echo "Please answer yes or no.";;
         esac
     done
 
-
-
+    # Local variables
+    local LOCAL_FOLDER=$(pwd)
+    # Download and install all dependencies
+    opencv_downloader
+    # Build opencv
+    opencv_build
+    # Make and install
+    opencv_make_install
+    # remove source folder
+    
+    # Restore previuous folder
+    cd $LOCAL_FOLDER
 }
 
 
