@@ -178,15 +178,17 @@ usage()
     echo "Usage:"
     echo "$0 [options]"
     echo "options,"
-    echo "   -h|--help      | This help"
-    echo "   -s|--silent    | Run this script silent"
-    echo "   -c|--config    | Define Panther type ${yellow}{sim, robot}${reset}"
-    echo "   -d|--distro    | Define ROS distribution [Default: ${green}$DISTRO${reset}]"
+    echo "   -h|--help            | This help"
+    echo "   -s|--silent          | Run this script silent"
+    echo "   -f|--file [FILE]     | File to read"
+    echo "   -c|--config [TYPE]   | Define Panther type ${yellow}{sim, robot}${reset}"
+    echo "   -d|--distro [DISTRO] | Define ROS distribution [Default: ${green}$DISTRO${reset}]"
 }
 
 
 main()
 {
+    local rosinstall_file=""
     local SILENT=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
@@ -194,6 +196,10 @@ main()
             -h|--help) # Load help
                 usage
                 exit 0
+                ;;
+            -f|--file)
+                rosinstall_file=$2
+                shift 1
                 ;;
             -s|--silent)
                 SILENT=true
@@ -272,8 +278,11 @@ main()
     
     # Install ROS workspace
     if [ $(ros_ws_status) = "NOT_INSTALLED" ] ; then
+        # Check if rosinstall file is not empty
+        if [ ! -z $rosinstall_file ] ; then
+            rosinstall_uri=$rosinstall_file
         # Extract rosinstall uri
-        if [ "$PANTHER_TYPE" = "sim" ] ; then
+        elif [ "$PANTHER_TYPE" = "sim" ] ; then
             rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther_simulation/master/simulation.rosinstall"
         elif [ "$PANTHER_TYPE" = "robot" ] ; then
             rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther_robot/master/robot.rosinstall"
@@ -285,6 +294,7 @@ main()
         echo "Install ROS workspace from ${bold}$rosinstall_uri${reset}"
         ros_ws $rosinstall_uri
     fi
+    
     if [ -f /var/run/reboot-required ] ; then
         # After install require reboot
         echo "${red}*** System Restart Required ***${reset}"
