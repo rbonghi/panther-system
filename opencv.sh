@@ -88,7 +88,7 @@ opencv_downloader()
 
 opencv_build()
 {
-    echo "Build openCV ${bold}$OPENCV_VERSION${reset} for $JETSON_MACHINE ${bold}($JETSON_CUDA_ARCH_BIN)${reset}"
+    echo "Build openCV ${bold}$OPENCV_VERSION${reset} for $HARDWARE_NAME ${bold}($CUDA_ARCH_BIN)${reset}"
     if [ -d "$BUILD_FOLDER/opencv/build" ] ; then
         echo "${yellow}Clean old Build folder${reset}"
         rm -R "$BUILD_FOLDER/opencv/build"
@@ -140,12 +140,11 @@ opencv_build()
 -D BUILD_opencv_python3=ON"
         fi
         # Remove DNN for old releases
-        if [ $CUDA_ARCH_BIN != "5.2" ] || [ $CUDA_ARCH_BIN != "5.3" ] ; then
+        if [ $CUDA_ARCH_BIN == "5.2" ] || [ $CUDA_ARCH_BIN == "5.3" ] ; then
             CMAKEFLAGS="$CMAKEFLAGS
 -D OPENCV_DNN_CUDA=OFF"
         fi
 
-    echo "cmake $CMAKEFLAGS .."
     time cmake $CMAKEFLAGS ..
 
     if [ $? -eq 0 ] ; then
@@ -203,6 +202,7 @@ usage()
     echo "   -opv|--op-version [VERSION] | Version OpenCV to install"
     echo "   --folder [FOLDER]           | OpenCV build folder"
     echo "   --force                     | Force install"
+    echo "   --skip-download             | Skip download opencv"
     echo "   --pc [CUDA_ARCH_BIN]        | Install on a Desktop PC."
     echo "                               | Find on https://en.wikipedia.org/wiki/CUDA"
     echo "                               | and use nvidia-smi to detect your board"
@@ -223,6 +223,7 @@ main()
     local CLEAN_SOURCES=false
     local NO_ASK=false
     local INSTALL_PC=false
+    local SKIP_DOWNLOAD=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -247,6 +248,9 @@ main()
                 ;;
             --force)
                 FORCE=true
+                ;;
+            --skip-download)
+                SKIP_DOWNLOAD=true
                 ;;
             -ocv|--ocv-version)
                 OPENCV_VERSION=$2
@@ -350,7 +354,9 @@ main()
     # Local variables
     local LOCAL_FOLDER=$(pwd)
     # Download and install all dependencies
-    #opencv_downloader
+    if ! $SKIP_DOWNLOAD ; then
+        opencv_downloader
+    fi
     # Build opencv
     opencv_build
     # Make and install
