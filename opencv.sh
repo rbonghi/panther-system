@@ -101,7 +101,7 @@ opencv_build()
 -D CMAKE_BUILD_TYPE=RELEASE
 -D CMAKE_INSTALL_PREFIX=$INSTALL_OPENCV_PATH
 -D WITH_CUDA=ON
--D CUDA_ARCH_BIN=$JETSON_CUDA_ARCH_BIN
+-D CUDA_ARCH_BIN=$CUDA_ARCH_BIN
 -D CUDA_ARCH_PTX=''
 -D WITH_CUBLAS=ON
 -D ENABLE_FAST_MATH=ON
@@ -121,7 +121,7 @@ opencv_build()
 -D OPENCV_ENABLE_NONFREE=ON" # for SLAM alghoritms SIFT/SURF
         if [ $INSTALL_OPENCV_CONTRIB == "YES" ] ; then
             CMAKEFLAGS="$CMAKEFLAGS
--D OPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules"
+-D OPENCV_EXTRA_MODULES_PATH=$BUILD_FOLDER/opencv/opencv_contrib/modules"
         fi
         if [ $JETSON_CUDNN != "NOT_INSTALLED" ] ; then
             CUDNN_VERSION=${JETSON_CUDNN%.*}
@@ -139,7 +139,12 @@ opencv_build()
             CMAKEFLAGS="$CMAKEFLAGS
 -D BUILD_opencv_python3=ON"
         fi
-   
+        # Remove DNN for old releases
+        if [ $CUDA_ARCH_BIN != "5.2" ] || [ $CUDA_ARCH_BIN != "5.3" ] ; then
+            CMAKEFLAGS="$CMAKEFLAGS
+-D OPENCV_DNN_CUDA=OFF"
+        fi
+
     echo "cmake $CMAKEFLAGS .."
     time cmake $CMAKEFLAGS ..
 
@@ -149,6 +154,7 @@ opencv_build()
         # Try to make again
         echo "${red}CMake issues"
         echo "Please check the configuration being used${reset}"
+        echo $CMAKEFLAGS
         exit 1
     fi
 }
@@ -192,17 +198,31 @@ usage()
     echo "$0 [options]"
     echo "options,"
     echo "   -h|--help                   | This help"
+    echo "   -y|--yes                    | Automatic install"
     echo "   -s|--silent                 | Run this script silent"
     echo "   -opv|--op-version [VERSION] | Version OpenCV to install"
     echo "   --folder [FOLDER]           | OpenCV build folder"
+    echo "   --force                     | Force install"
+    echo "   --pc [CUDA_ARCH_BIN]        | Install on a Desktop PC."
+    echo "                               | Find on https://en.wikipedia.org/wiki/CUDA"
+    echo "                               | and use nvidia-smi to detect your board"
 }
 
 
 main()
 {
+    # Load variables
+    CUDA_VERSION=$JETSON_CUDA
+    CUDNN_VERSION=$JETSON_CUDNN
+    OPENCV_VERSION_CUDA=$JETSON_OPENCV_CUDA
+    OPENCV_STATUS=$JETSON_OPENCV
+    HARDWARE_NAME="$JETSON_MACHINE [$JETSON_L4T]"
+    CUDA_ARCH_BIN=$JETSON_CUDA_ARCH_BIN
+    
     local SILENT=false
     local CLEAN_SOURCES=false
     local NO_ASK=false
+    local INSTALL_PC=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -215,6 +235,15 @@ main()
                 ;;
             -s|--silent)
                 SILENT=true
+                ;;
+            --pc)
+                INSTALL_PC=true
+                if [ -z $2 ] ; then
+                    usage "[ERROR] Unknown option: $1"
+                    exit 1
+                fi
+                CUDA_ARCH_BIN=$2
+                shift 1
                 ;;
             --force)
                 FORCE=true
@@ -235,28 +264,53 @@ main()
             shift 1
     done
 
-    # Check Jetson board
-    if [ -z "$JETSON_MACHINE" ] ; then
-        echo "${red}jetson-stats not installed${reset}"
-        exit 1
+    if ! $INSTALL_PC ; then
+        # Check Jetson board
+        if [ -z "$JETSON_MACHINE" ] ; then
+            echo "${red}jetson-stats not installed${reset}"
+            exit 1
+        fi
+        if [ $JETSON_BOARD == "UNKNOWN" ] ; then
+            echo "${red}Please check if jetson-stats is well installed${reset}"
+            exit 1
+        fi
+        # Check Opencv version
+        if [ -z $JETSON_OPENCV ] ; then
+            echo "${red}Please select wich version is needed using option ${bold}-ocv${reset} or ${bold}--ocv-version${reset} ${reset}"
+            exit 1
+        fi
     fi
-    if [ $JETSON_BOARD == "UNKNOWN" ] ; then
-        echo "${red}Please check if jetson-stats is well installed${reset}"
-        exit 1
+    
+
+    # Override for PC version
+    if $INSTALL_PC ; then
+        HARDWARE_NAME="PC desktop"
+        # CUDA search
+        CUDA_VERSION=$(cat /usr/local/cuda/version.txt | sed 's/\CUDA Version //g')
+        #CUDNN search
+        CUDNN_VERSION=$(dpkg -l 2>/dev/null | grep -m1 "libcudnn")
+        if [ ! -z "$CUDNN_VERSION" ] ; then
+            CUDNN_VERSION=$(echo $CUDNN_VERSION | sed 's/.*libcudnn[0-9] \([^ ]*\).*/\1/' | cut -d '-' -f1 )
+        else
+            CUDNN_VERSION="NOT_INSTALLED"
+        fi
+        # Detect opencv
+        if hash opencv_version 2>/dev/null; then
+            OPENCV_STATUS="$(opencv_version)"
+        else
+            OPENCV_STATUS="NOT_INSTALLED"
+            OPENCV_VERSION_CUDA="NO"
+        fi
     fi
+    
     # Check CUDA version
-    if [ -z $JETSON_CUDA ] ; then
+    if [ -z $CUDA_VERSION ] ; then
         echo "${red}Please install CUDA${reset}"
         exit 1
     fi
 
-    # Check Opencv version
-    if [ -z $JETSON_OPENCV ] ; then
-        echo "${red}Please select wich version is needed using option ${bold}-ocv${reset} or ${bold}--ocv-version${reset} ${reset}"
-        exit 1
-    fi
     # Exit if OpenCV is well installed with CUDA
-    if [ $JETSON_OPENCV_CUDA == "YES" ] && [ $JETSON_OPENCV == $OPENCV_VERSION ] ; then
+    if [ $OPENCV_VERSION_CUDA == "YES" ] && [ $OPENCV_STATUS == $OPENCV_VERSION ] && ! $FORCE ; then
         echo "${green}OpenCV $JETSON_OPENCV is installed with CUDA $JETSON_CUDA${reset}"
         exit 0
     fi
@@ -267,20 +321,20 @@ main()
         if $FORCE ; then
             echo "${red}FORCE MODE ON${reset}"
         fi
-        echo "$JETSON_MACHINE [$JETSON_L4T]"
-        echo "${green}CUDA${reset} $JETSON_CUDA (ARCH BIN) $JETSON_CUDA_ARCH_BIN"
-        echo "${green}cuDNN${reset} $JETSON_CUDNN"
+        echo "$HARDWARE_NAME"
+        echo "${green}CUDA${reset} $CUDA_VERSION (ARCH BIN) $CUDA_ARCH_BIN"
+        echo "${green}cuDNN${reset} $CUDNN_VERSION"
         # OpenCV version
-        if [ $JETSON_OPENCV != $OPENCV_VERSION ] ; then
-            echo "Change ${green}OpenCV${reset} from $JETSON_OPENCV -> ${bold}$OPENCV_VERSION${reset}"
+        if [ $OPENCV_STATUS != $OPENCV_VERSION ] ; then
+            echo "Change ${green}OpenCV${reset} from $OPENCV_STATUS -> ${bold}$OPENCV_VERSION${reset}"
         else
             echo "Install OpenCV ${bold}$OPENCV_VERSION${reset}"
         fi
         echo "OpenCV build ${green}folder${reset} ${bold}$BUILD_FOLDER${reset}"
         echo " - ${green}contrib${reset} $INSTALL_OPENCV_CONTRIB"
-        echo " - ${green}extra${reset} $INSTALL_OPENCV_EXTRA"
         echo " - ${green}python2${reset} $INSTALL_OPENCV_PYTHON2"
         echo " - ${green}python3${reset} $INSTALL_OPENCV_PYTHON3"
+        echo "Clean sources: ${bold}$CLEAN_SOURCES${reset}"
         echo "------------------------"
     fi
     # Ask before start install
@@ -296,7 +350,7 @@ main()
     # Local variables
     local LOCAL_FOLDER=$(pwd)
     # Download and install all dependencies
-    opencv_downloader
+    #opencv_downloader
     # Build opencv
     opencv_build
     # Make and install
