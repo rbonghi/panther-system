@@ -117,16 +117,11 @@ opencv_build()
 -D WITH_OPENGL=ON
 -D EIGEN_INCLUDE_PATH=/usr/include/eigen3
 -D WITH_GSTREAMER=ON
--D OPENCV_GENERATE_PKGCONFIG=ON"
-        # TODO: Check "-D OPENCV_ENABLE_NONFREE=ON"
+-D OPENCV_GENERATE_PKGCONFIG=ON
+-D OPENCV_ENABLE_NONFREE=ON" # for SLAM alghoritms SIFT/SURF
         if [ $INSTALL_OPENCV_CONTRIB == "YES" ] ; then
             CMAKEFLAGS="$CMAKEFLAGS
 -D OPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules"
-        fi
-        if [ $INSTALL_OPENCV_EXTRA == "YES" ] ; then
-            CMAKEFLAGS="$CMAKEFLAGS
--D INSTALL_TESTS=ON 
--D OPENCV_TEST_DATA_PATH=../opencv_extra/testdata"
         fi
         if [ $JETSON_CUDNN != "NOT_INSTALLED" ] ; then
             CUDNN_VERSION=${JETSON_CUDNN%.*}
@@ -207,12 +202,16 @@ main()
 {
     local SILENT=false
     local CLEAN_SOURCES=false
+    local NO_ASK=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
             -h|--help) # Load help
                 usage
                 exit 0
+                ;;
+            -y|--yes)
+                NO_ASK=true
                 ;;
             -s|--silent)
                 SILENT=true
@@ -285,7 +284,7 @@ main()
         echo "------------------------"
     fi
     # Ask before start install
-    while ! $SILENT; do
+    while ! $NO_ASK; do
         read -p "Do you want install OpenCV ${bold}$OPENCV_VERSION${reset}? [Y/n] " yn
             case $yn in
                 [Yy]* ) break;;
