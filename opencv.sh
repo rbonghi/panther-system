@@ -91,7 +91,7 @@ opencv_build()
     echo "Build openCV ${bold}$OPENCV_VERSION${reset} for $HARDWARE_NAME ${bold}($CUDA_ARCH_BIN)${reset}"
     if [ -d "$BUILD_FOLDER/opencv/build" ] ; then
         echo "${yellow}Clean old Build folder${reset}"
-        rm -R "$BUILD_FOLDER/opencv/build"
+        sudo rm -R "$BUILD_FOLDER/opencv/build"
     fi
     mkdir -p "$BUILD_FOLDER/opencv/build" 
     cd "$BUILD_FOLDER/opencv/build"
@@ -142,7 +142,9 @@ opencv_build()
         # Remove DNN for old releases
         if [ $CUDA_ARCH_BIN == "5.2" ] || [ $CUDA_ARCH_BIN == "5.3" ] ; then
             CMAKEFLAGS="$CMAKEFLAGS
--D OPENCV_DNN_CUDA=OFF"
+-D OPENCV_DNN_CUDA=OFF
+-D ENABLE_PRECOMPILED_HEADERS=OFF
+-D BUILD_opencv_cudacodec=OFF" #https://github.com/opencv/opencv_contrib/issues/1786 for opencv 3.4.3
         fi
 
     time cmake $CMAKEFLAGS ..
@@ -167,6 +169,15 @@ opencv_make_install()
 
     echo "${bold}Make${reset} openCV $OPENCV_VERSION with $NUM_CPU CPU"
     time make -j$(($NUM_CPU - 1))
+    
+    if [ $? -eq 0 ] ; then
+        echo "${green}Make successful${reset}"
+    else
+        # Try to make again
+        echo "${red}Make issues"
+        echo "Please check the configuration being used${reset}"
+        exit 1
+    fi
 
     echo "${bold}Test${reset} openCV make"
     time make test
@@ -199,7 +210,7 @@ usage()
     echo "   -h|--help                   | This help"
     echo "   -y|--yes                    | Automatic install"
     echo "   -s|--silent                 | Run this script silent"
-    echo "   -opv|--op-version [VERSION] | Version OpenCV to install"
+    echo "   -ocv|--oc-version [VERSION] | Version OpenCV to install"
     echo "   --folder [FOLDER]           | OpenCV build folder"
     echo "   --force                     | Force install"
     echo "   --skip-download             | Skip download opencv"
@@ -252,7 +263,7 @@ main()
             --skip-download)
                 SKIP_DOWNLOAD=true
                 ;;
-            -ocv|--ocv-version)
+            -ocv|--oc-version)
                 OPENCV_VERSION=$2
                 shift 1
                 ;;
