@@ -88,6 +88,9 @@ opencv_downloader()
 
 opencv_build()
 {
+    OPENCV_VER_MAJOR=${OPENCV_VERSION%.*}
+    OPENCV_VER_MAJOR=${OPENCV_VER_MAJOR%.*}
+
     echo "Build openCV ${bold}$OPENCV_VERSION${reset} for $HARDWARE_NAME ${bold}($CUDA_ARCH_BIN)${reset}"
     if [ -d "$BUILD_FOLDER/opencv/build" ] ; then
         echo "${yellow}Clean old Build folder${reset}"
@@ -140,11 +143,15 @@ opencv_build()
 -D BUILD_opencv_python3=ON"
         fi
         # Remove DNN for old releases
-        if [ $CUDA_ARCH_BIN == "5.2" ] || [ $CUDA_ARCH_BIN == "5.3" ] ; then
+        if [ $OPENCV_VER_MAJOR == "4" ] && [ $CUDA_ARCH_BIN == "5.2" ] || [ $CUDA_ARCH_BIN == "5.3" ] ; then
             CMAKEFLAGS="$CMAKEFLAGS
--D OPENCV_DNN_CUDA=OFF
+-D OPENCV_DNN_CUDA=OFF"
+        fi
+        # https://github.com/opencv/opencv_contrib/issues/1786 for opencv 3.4.3
+        if [ $OPENCV_VER_MAJOR == "3" ] && [ ${CUDA_VERSION%.*} == "10.2" ] ; then
+            CMAKEFLAGS="$CMAKEFLAGS
 -D ENABLE_PRECOMPILED_HEADERS=OFF
--D BUILD_opencv_cudacodec=OFF" #https://github.com/opencv/opencv_contrib/issues/1786 for opencv 3.4.3
+-D BUILD_opencv_cudacodec=OFF" 
         fi
 
     time cmake $CMAKEFLAGS ..
