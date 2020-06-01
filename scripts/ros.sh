@@ -322,6 +322,7 @@ usage()
     echo "options,"
     echo "   -h|--help            | This help"
     echo "   -s|--silent          | Run this script silent"
+    echo "   --status             | Status ROS installer"
     echo "   -f|--file [FILE]     | File to read"
     echo "   -c|--config [TYPE]   | Define Panther type ${yellow}{sim, robot}${reset}"
     echo "   -d|--distro [DISTRO] | Define ROS distribution [Default: ${green}$DISTRO${reset}]"
@@ -354,6 +355,10 @@ main()
             -d|--distro)
                 DISTRO=$2
                 shift 1
+                ;;
+            --status)
+                recap
+                exit
                 ;;
             *)
                 usage "[ERROR] Unknown option: $1"

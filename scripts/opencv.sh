@@ -321,7 +321,7 @@ main()
             OPENCV_STATUS="$(opencv_version)"
         else
             OPENCV_STATUS="NOT_INSTALLED"
-            OPENCV_VERSION_CUDA="NO"
+            OPENCV_VERSION_CUDA="YES"
         fi
     fi
     

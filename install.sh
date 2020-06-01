@@ -25,9 +25,21 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+bold=`tput bold`
+red=`tput setaf 1`
+green=`tput setaf 2`
+yellow=`tput setaf 3`
+reset=`tput sgr0`
+
+
 main()
 {
-    echo "Installer"
+    echo "panther-system installer"
+    echo
+    
+    echo "------ ROS status ------"
+    sh scripts/ros.sh --status
+    echo "------------------------"
 }
 
 
