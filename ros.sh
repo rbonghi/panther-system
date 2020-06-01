@@ -396,8 +396,8 @@ main()
         exit 0
     fi
 
-    echo "Numbers [0-9], [a/A] to install All or press [q/Q] to quit"
     # Ask before start install
+    echo "Numbers [0-9], [a/A] to install All or press [q/Q] to quit"
     while ! $SILENT; do
         read -p "What do you want to do?[0-9aAqQ] " input
         if [[ $input ]] && [ $input -eq $input 2>/dev/null ] ; then

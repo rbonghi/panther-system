@@ -30,11 +30,6 @@ green=`tput setaf 2`
 reset=`tput sgr0`
 
 ZED_VERSION="3.1"
-# Components
-ALL=false
-SUDOERS=false
-UDEV=false
-ZED=false
 
 
 versioning()
@@ -143,32 +138,13 @@ usage()
     echo "options,"
     echo "   -h|--help      | This help"
     echo "   -s|--silent    | Run this script silent"
-    echo "   -d|--distro    | Define ROS distribution Default:${green}$DISTRO${reset}"
-    echo "   --all          | Install all parts"
-    echo "   --sudo-ers     | Install sudo-ers rules (shutdown and reboot without pass)"
-    echo "   --udev         | Install UDEV rules"
-    echo "   --zed          | Install or update ZED drivers"
-}
-
-
-list_components()
-{
-    if $SUDOERS || $ALL ; then
-        echo " * sudoers rules"
-    fi
-    if $UDEV || $ALL ; then
-        echo " * udev"
-    fi
-    if $ZED || $ALL ; then
-        echo " * zed"
-    fi
 }
 
 
 main()
 {
     local SILENT=false
-    local noflag=true
+    local INSTALL_ALL=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -178,26 +154,6 @@ main()
                 ;;
             -s|--silent)
                 SILENT=true
-                ;;
-            -d|--distro)
-                DISTRO=$2
-                shift 1
-                ;;                
-            --all)
-                ALL=true
-                noflag=false
-                ;;
-            --sudo-ers)
-                SUDOERS=true
-                noflag=false
-                ;;
-            --udev)
-                UDEV=true
-                noflag=false
-                ;;
-            --zed)
-                ZED=true
-                noflag=false
                 ;;
             *)
                 usage "[ERROR] Unknown option: $1"
@@ -212,51 +168,49 @@ main()
         echo "${red}Please don't run as root${reset}"
         exit 1
     fi
-    # Check if there are not options selected
-    if $noflag ; then
-        echo "${red}Please select one or more options!${reset}"
-        usage
-        exit 1
-    fi
     
     # Recap installatation
     echo "--- Board configuration ---"
     echo " - Hostname: ${green}$HOSTNAME${reset}"
     echo " - User: ${green}$USER${reset}"
     echo " - Home: ${green}$HOME${reset}"
-    echo " - ZED version: ${green}$(zed_status)${reset} - $ZED_VERSION"
+    echo "-------Install ------------"
+    echo " 1. Sudoers"
+    echo " 2. UDEV"
+    echo " 3. ZED SDK ${green}$(zed_status)${reset} - $ZED_VERSION"
     echo "---------------------------"
-    echo " Installing list:"
-    list_components
-    echo "---------------------------"
+
     # Ask before start install
+    echo "Numbers [0-9], [a/A] to install All or press [q/Q] to quit"
     while ! $SILENT; do
-        read -p "Do you want install panther-system? [Y/n] " yn
-            case $yn in
-                [Yy]* ) break;;
-                [Nn]* ) exit;;
-            * ) echo "Please answer yes or no.";;
-        esac
+        read -p "What do you want to do?[0-9aAqQ] " input
+        if [[ $input ]] && [ $input -eq $input 2>/dev/null ] ; then
+            break
+        elif [ ${input,,} = "a" ] ; then
+            INSTALL_ALL=true
+            break
+        elif [ ${input,,} = "q" ] ; then
+            exit 0
+        else
+            echo "Please write a number [0-9], [a/A] to install All or press [q/Q] to quit"
+        fi
     done
 
     # Request sudo password
     sudo -v
     # Install SUDOERS
-    if $SUDOERS || $ALL ; then
+    if [ "$input" = "1" ] || $INSTALL_ALL ] ; then
         sudoers_rules
     fi
     # Install UDEV
-    if $UDEV || $ALL ; then
+    if [ "$input" = "2" ] || $INSTALL_ALL ] ; then
         udev
     fi
     # Install ZED
-    if $ZED || $ALL ; then
+    if [ "$input" = "3" ] || $INSTALL_ALL ] ; then
         zed
     fi
-    
-    echo "---------------------------"
-    echo " Installed:"
-    list_components
+
     if [ -f /var/run/reboot-required ] ; then
         # After install require reboot
         echo "${red}*** System Restart Required ***${reset}"
