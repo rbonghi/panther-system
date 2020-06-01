@@ -273,31 +273,38 @@ recap()
     local status=0
     # Panther scripts
     if [ $(extra_scripts) = "NOT_INSTALLED" ] ; then
-        echo " - ${yellow}Install${reset} Panther scripts"
+        echo " 1. ${yellow}Install${reset} Panther scripts"
         status=1
     else
-        echo " - Panther scripts installed"
+        echo " 1. Panther scripts installed"
     fi
     # ROS
     if [ $(ros_status) = "NOT_INSTALLED" ] ; then
-        echo " - ${yellow}Install${reset} ROS $DISTRO"
+        echo " 2. ${yellow}Install${reset} ROS $DISTRO"
         status=1
     else
-        echo " - ROS ${green}$(ros_status)${reset} installed"
+        echo " 2. ROS ${green}$(ros_status)${reset} installed"
     fi
+    # Rtabmap
+    if [ "A" != "B" ] ; then
+        echo " 3. ${yellow}Install${reset} RTABmap"
+        status=1
+    else
+        echo " 3. ${green}RTABmap${reset} is installed"
+    fi    
     # ROS workspace
     if [ $(ros_ws_status $CUSTOM_WS_NAME) = "NOT_INSTALLED" ] ; then
-        echo " - ${yellow}Install${reset} ROS workspace ${green}$CUSTOM_WS_NAME${reset}"
+        echo " 4. ${yellow}Install${reset} ROS workspace ${green}$CUSTOM_WS_NAME${reset}"
         status=1
     else
-        echo " - ROS workspace ${green}$CUSTOM_WS_NAME${reset} installed"
+        echo " 4. ROS workspace ${green}$CUSTOM_WS_NAME${reset} installed"
     fi
     # ROS workspace
     if [ $(ros_ws_status $ROS_WS_NAME) = "NOT_INSTALLED" ] ; then
-        echo " - ${yellow}Install${reset} ROS workspace ${green}$ROS_WS_NAME${reset}"
+        echo " 5. ${yellow}Install${reset} ROS workspace ${green}$ROS_WS_NAME${reset}"
         status=1
     else
-        echo " - ROS workspace ${green}$ROS_WS_NAME${reset} installed"
+        echo " 5. ROS workspace ${green}$ROS_WS_NAME${reset} installed"
     fi
     return $status
 }
@@ -325,6 +332,7 @@ main()
 {
     local rosinstall_file=""
     local SILENT=false
+    local INSTALL_ALL=false
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -388,21 +396,27 @@ main()
         exit 0
     fi
 
+    echo "Numbers [0-9], [a/A] to install All or press [q/Q] to quit"
     # Ask before start install
     while ! $SILENT; do
-        read -p "Do you want install panther-system? [Y/n] " yn
-            case $yn in
-                [Yy]* ) break;;
-                [Nn]* ) exit;;
-            * ) echo "Please answer yes or no.";;
-        esac
+        read -p "What do you want to do?[0-9aAqQ] " input
+        if [[ $input ]] && [ $input -eq $input 2>/dev/null ] ; then
+            break
+        elif [ ${input,,} = "a" ] ; then
+            INSTALL_ALL=true
+            break
+        elif [ ${input,,} = "q" ] ; then
+            exit 0
+        else
+            echo "Please write a number [0-9], [a/A] to install All or press [q/Q] to quit"
+        fi
     done
 
     # Request sudo password
     sudo -v
 
     # Install Panther scripts
-    if [ $(extra_scripts) = "NOT_INSTALLED" ] ; then
+    if [ "NOT_INSTALLED" = "NOT_INSTALLED" ] && ( [ "$input" = "1" ] || $INSTALL_ALL ] ) ; then
         # Add this folder in bashrc
         if ! grep -Fxq "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" $HOME/.bashrc ; then
             echo "   - Add PATH=$(pwd)/bin\${PATH:+:\${PATH}} on .bashrc"
@@ -421,7 +435,7 @@ main()
     fi
     
     # Install ROS
-    if [ $(ros_status) = "NOT_INSTALLED" ] ; then
+    if [ $(ros_status) = "NOT_INSTALLED" ] && ( [ "$input" = "2" ] || $INSTALL_ALL ] ) ; then
         echo "Install ROS"
         ros
     fi
@@ -438,7 +452,7 @@ main()
     OPENCV_MAJOR=${OPENCV_MAJOR%.*}
 
     # Install ROS customization
-    if [ $(ros_ws_status $CUSTOM_WS_NAME) = "NOT_INSTALLED" ] ; then
+    if [ $(ros_ws_status $CUSTOM_WS_NAME) = "NOT_INSTALLED" ] && ( [ "$input" = "4" ] || $INSTALL_ALL ] ) ; then
         local rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther/master/${DISTRO}_cv$OPENCV_MAJOR.rosinstall"
         # Run rosinstall uri
         echo "Install ${green}custom ROS${reset} workspace from ${bold}$rosinstall_uri${reset}"
@@ -446,7 +460,7 @@ main()
     fi
 
     # Install ROS workspace
-    if [ $(ros_ws_status $ROS_WS_NAME) = "NOT_INSTALLED" ] ; then
+    if [ $(ros_ws_status $ROS_WS_NAME) = "NOT_INSTALLED" ] && ( [ "$input" = "5" ] || $INSTALL_ALL ] ) ; then
         # Check if rosinstall file is not empty
         if [ ! -z $rosinstall_file ] ; then
             rosinstall_uri=$rosinstall_file
