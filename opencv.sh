@@ -333,7 +333,7 @@ main()
 
     # Exit if OpenCV is well installed with CUDA
     if [ $OPENCV_VERSION_CUDA == "YES" ] && [ $OPENCV_STATUS == $OPENCV_VERSION ] && ! $FORCE ; then
-        echo "${green}OpenCV $JETSON_OPENCV is installed with CUDA $JETSON_CUDA${reset}"
+        echo "${green}OpenCV $JETSON_OPENCV is installed with CUDA $CUDA_VERSION${reset}"
         exit 0
     fi
 

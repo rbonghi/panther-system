@@ -32,24 +32,26 @@ reset=`tput sgr0`
 
 # variables
 DISTRO="melodic"
+CUSTOM_WS_NAME="custom_ws"
 ROS_WS_NAME="catkin_ws"
 
 ros_ws()
 {
-    local rosinstall=$1
+    local ros_ws=$1
+    local rosinstall=$2
     local THIS="$(pwd)"
     echo " * ROS Install on ${green}$HOME${reset}"
     # Install wstool
     sudo apt-get install python-rosinstall -y
     echo "   - Make workspace ${green}$HOME${reset}"
-    mkdir -p $HOME/$ROS_WS_NAME/src
+    mkdir -p $HOME/$ros_ws/src
     # Copy panther wstool and run
     echo "   - Initialization rosinstall"
     # Move to catkin_ws folder
-    cd $HOME/$ROS_WS_NAME/
+    cd $HOME/$ros_ws/
     # Initialize wstool
     # https://www.systutorials.com/docs/linux/man/1-wstool/
-    if [ ! -f $HOME/$ROS_WS_NAME/src/.rosinstall ] ; then
+    if [ ! -f $HOME/$ros_ws/src/.rosinstall ] ; then
         wstool init src
     fi
     wstool merge -t src $rosinstall
@@ -62,10 +64,12 @@ ros_ws()
     # Catkin make all workspace
     catkin_make
     # Add environment variables on bashrc
-    if ! grep -Fxq "source $HOME/$ROS_WS_NAME/devel/setup.bash" $HOME/.bashrc ; then
+    if ! grep -Fxq "source $HOME/$ros_ws/devel/setup.bash" $HOME/.bashrc ; then
         echo "   - Add workspace ${green}$ROS_WS_NAME${reset} on .bashrc"
-        echo "source $HOME/$ROS_WS_NAME/devel/setup.bash" >> $HOME/.bashrc
+        echo "source $HOME/$ros_ws/devel/setup.bash" >> $HOME/.bashrc
     fi
+    # Load locally on this script the source workspace
+    source $HOME/$ros_ws/devel/setup.bash
     # Return to home folder
     cd $THIS
 }
@@ -73,7 +77,8 @@ ros_ws()
 
 ros_ws_status()
 {
-    if [ -d "$HOME/$ROS_WS_NAME" ] ; then
+    local ros_ws=$1
+    if [ -d "$HOME/$ros_ws" ] ; then
         echo "OK"
         return
     fi
@@ -147,24 +152,36 @@ extra_scripts()
 
 recap()
 {
+    local status=0
     # Panther scripts
     if [ $(extra_scripts) = "NOT_INSTALLED" ] ; then
         echo " - ${yellow}Install${reset} Panther scripts"
+        status=1
     else
         echo " - Panther scripts installed"
     fi
     # ROS
     if [ $(ros_status) = "NOT_INSTALLED" ] ; then
         echo " - ${yellow}Install${reset} ROS $DISTRO"
+        status=1
     else
         echo " - ROS ${green}$(ros_status)${reset} installed"
     fi
     # ROS workspace
-    if [ $(ros_ws_status) = "NOT_INSTALLED" ] ; then
-        echo " - ${yellow}Install${reset} ROS workspace $ROS_WS_NAME"
+    if [ $(ros_ws_status $CUSTOM_WS_NAME) = "NOT_INSTALLED" ] ; then
+        echo " - ${yellow}Install${reset} ROS workspace ${green}$CUSTOM_WS_NAME${reset}"
+        status=1
     else
-        echo " - ROS workspace $ROS_WS_NAME installed"
+        echo " - ROS workspace ${green}$CUSTOM_WS_NAME${reset} installed"
     fi
+    # ROS workspace
+    if [ $(ros_ws_status $ROS_WS_NAME) = "NOT_INSTALLED" ] ; then
+        echo " - ${yellow}Install${reset} ROS workspace ${green}$ROS_WS_NAME${reset}"
+        status=1
+    else
+        echo " - ROS workspace ${green}$ROS_WS_NAME${reset} installed"
+    fi
+    return $status
 }
 
 
@@ -238,10 +255,20 @@ main()
     echo " - ${bold}User:${reset} ${green}$USER${reset}"
     echo " - ${bold}Home:${reset} ${green}$HOME${reset}"
     echo " - ${bold}Type:${reset} ${green}${PANTHER_TYPE^^}${reset}"
-    echo " - ${bold}ROS Distro:${reset} ${green}$(ros_status)${reset} - $DISTRO"
-    echo "------- Install -----------"
+    if [ $(ros_status) != $DISTRO ] ; then 
+        echo " - ${bold}ROS Distro:${reset} ${yellow}$(ros_status)${reset} -> ${green}$DISTRO${reset}"
+    else
+        echo " - ${bold}ROS Distro:${reset} ${green}$(ros_status)${reset}"
+    fi
+    echo "------ Install status -----"
     recap
+    local recap_status=$?
     echo "---------------------------"
+
+    if [ $recap_status -eq 0 ] ; then
+        echo "${green}Panther ROS installed. Nothing to do!${reset}"
+        exit 0
+    fi
 
     # Ask before start install
     while ! $SILENT; do
@@ -275,9 +302,17 @@ main()
         echo "Install ROS"
         ros
     fi
-    
+
+    # Install ROS customization
+    if [ $(ros_ws_status $CUSTOM_WS_NAME) = "NOT_INSTALLED" ] ; then
+        local rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther/master/$DISTRO.rosinstall"
+        # Run rosinstall uri
+        echo "Install ${green}custom ROS${reset} workspace from ${bold}$rosinstall_uri${reset}"
+        ros_ws $CUSTOM_WS_NAME $rosinstall_uri
+    fi
+
     # Install ROS workspace
-    if [ $(ros_ws_status) = "NOT_INSTALLED" ] ; then
+    if [ $(ros_ws_status $ROS_WS_NAME) = "NOT_INSTALLED" ] ; then
         # Check if rosinstall file is not empty
         if [ ! -z $rosinstall_file ] ; then
             rosinstall_uri=$rosinstall_file
@@ -292,7 +327,7 @@ main()
         fi
         # Run rosinstall uri
         echo "Install ROS workspace from ${bold}$rosinstall_uri${reset}"
-        ros_ws $rosinstall_uri
+        ros_ws $ROS_WS_NAME $rosinstall_uri
     fi
     
     if [ -f /var/run/reboot-required ] ; then
