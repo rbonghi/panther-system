@@ -32,8 +32,117 @@ reset=`tput sgr0`
 
 # variables
 DISTRO="melodic"
-CUSTOM_WS_NAME="custom_ws"
-ROS_WS_NAME="catkin_ws"
+CUSTOM_WS_NAME="ros_custom_ws"
+ROS_WS_NAME="ros_panther_ws"
+
+# Installer RTABmap
+# https://github.com/introlab/rtabmap
+# https://github.com/introlab/rtabmap/wiki/Installation
+# Install for NVIDIA Jetson
+# Jetpack 4 https://github.com/introlab/rtabmap/issues/427#issuecomment-516914817
+# https://github.com/introlab/rtabmap_ros#build-from-source-for-nvidia-jetson
+rtabmap_install()
+{
+    local NUM_CPU=$(nproc)
+    local rtabmap_folder=$HOME/rtabmap
+    
+    echo "Remove rtabmap packages if installed"
+    sudo apt remove -y ros-$DISTRO-rtabmap-ros
+    sudo apt remove -y ros-$DISTRO-rtabmap
+   
+    # rtabmap folder
+    echo "Make $HOME/rtabmap folder"
+    mkdir -p $rtabmap_folder
+    cd $rtabmap_folder
+    
+    if [ "$PANTHER_TYPE" = "robot" ] ; then
+        # Install VTK
+        echo "Install ${green}VTK${reset}"
+        cd git clone https://github.com/Kitware/VTK.git
+        cd VTK
+        git checkout v6.3.0
+        mkdir build
+        cd build
+        cmake -DVTK_Group_Qt=ON -DVTK_QT_VERSION=4 -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..
+        time make -j$(($NUM_CPU - 1))
+        
+        if [ $? -eq 0 ] ; then
+            echo "${green}CMake configuration make successful${reset}"
+        else
+            # Try to make again
+            echo "${red}CMake issues"
+            echo "Please check the configuration being used${reset}"
+            echo $CMAKEFLAGS
+            exit 1
+        fi
+
+        # Remove Gt5 related VTK libraries
+        sudo rm /usr/lib/aarch64-linux-gnu/libvtkGUISupportQt*
+        sudo rm /usr/lib/aarch64-linux-gnu/libvtkRenderingQt*
+        sudo rm /usr/lib/aarch64-linux-gnu/libvtkViewsQt*
+        sudo rm /usr/lib/cmake/vtk-6.3/Modules/vtkGUISupportQtWebkit.cmake
+        # Copy the newly compiled ones with Qt4 support
+        cd $rtabmap_folder/VTK/build/lib
+        sudo cp libvtkGUISupportQt* /usr/lib/aarch64-linux-gnu/.
+        sudo cp libvtkRenderingQt* /usr/lib/aarch64-linux-gnu/.
+        sudo cp libvtkGUISupportQtSQL* /usr/lib/aarch64-linux-gnu/.
+        sudo cp libvtkViewsQt* /usr/lib/aarch64-linux-gnu/.
+        # Copy cmake modules
+        sudo cp vtkGUISupportQt.cmake /usr/lib/cmake/vtk-6.3/Modules/.
+        sudo cp vtkGUISupportQtOpenGL.cmake /usr/lib/cmake/vtk-6.3/Modules/.
+        sudo cp vtkGUISupportQtSQL.cmake /usr/lib/cmake/vtk-6.3/Modules/. 
+        sudo cp vtkRenderingQt.cmake /usr/lib/cmake/vtk-6.3/Modules/.
+        sudo cp vtkViewsQt.cmake /usr/lib/cmake/vtk-6.3/Modules/.
+        # remove Qt5 stuffs
+        sudo rm /usr/lib/cmake/vtk-6.3/VTKTargets.cmake
+        sudo rm /usr/lib/cmake/vtk-6.3/VTKTargets-none.cmake
+
+        # Create symbolic links to match binaries version
+        cd /usr/lib/aarch64-linux-gnu
+        sudo ln -s  libvtkGUISupportQtOpenGL-6.3.so.1 libvtkGUISupportQtOpenGL-6.3.so.6.3.0
+        sudo ln -s  libvtkGUISupportQt-6.3.so.1 libvtkGUISupportQt-6.3.so.6.3.0
+        sudo ln -s  libvtkRenderingQt-6.3.so.1 libvtkRenderingQt-6.3.so.6.3.0
+        sudo ln -s  libvtkGUISupportQtSQL-6.3.so.1 libvtkGUISupportQtSQL-6.3.so.6.3.0
+        sudo ln -s  libvtkViewsQt-6.3.so.1 libvtkViewsQt-6.3.so.6.3.0
+        sudo ln -s libvtkInteractionStyle-6.3.so.6.3.0 libvtkInteractionStyle-6.3.so.1
+        sudo ln -s libvtkRenderingOpenGL-6.3.so.6.3.0 libvtkRenderingOpenGL-6.3.so.1 
+        sudo ln -s libvtkRenderingCore-6.3.so.6.3.0 libvtkRenderingCore-6.3.so.1
+        sudo ln -s libvtkFiltersExtraction-6.3.so.6.3.0 libvtkFiltersExtraction-6.3.so.1
+        sudo ln -s libvtkCommonDataModel-6.3.so.6.3.0 libvtkCommonDataModel-6.3.so.1
+        sudo ln -s libvtkCommonCore-6.3.so.6.3.0 libvtkCommonCore-6.3.so.1
+    fi
+    # Download GTSAM
+    # https://github.com/borglab/gtsam
+    # TODO: Check to add
+
+
+    # Make Custom workspace before build
+    echo "Make ROS custom workspace ${bold}$HOME/$CUSTOM_WS_NAME${reset}"
+    mkdir -p $HOME/$CUSTOM_WS_NAME/src
+    cd $HOME/$CUSTOM_WS_NAME
+    catkin_make
+
+    # Clone, make and install rtabmap
+    echo "Clone and install ${green}rtabmap${reset}"
+    cd $rtabmap_folder
+    git clone https://github.com/introlab/rtabmap.git
+    cd rtabmap/build
+    cmake -DRTABMAP_QT_VERSION=4 -DCMAKE_INSTALL_PREFIX=~/$CUSTOM_WS_NAME/devel ..
+    time make -j$(($NUM_CPU - 1))
+    
+    if [ $? -eq 0 ] ; then
+        echo "${green}CMake configuration make successful${reset}"
+    else
+        # Try to make again
+        echo "${red}CMake issues"
+        echo "Please check the configuration being used${reset}"
+        echo $CMAKEFLAGS
+        exit 1
+    fi
+    
+    make install # Sudo is not needed
+}
+
 
 ros_ws()
 {
@@ -64,9 +173,12 @@ ros_ws()
     # Catkin make all workspace
     catkin_make
     # Add environment variables on bashrc
-    if ! grep -Fxq "source $HOME/$ros_ws/devel/setup.bash" $HOME/.bashrc ; then
+    # --extend reference:
+    # https://stackoverflow.com/questions/26410578/number-of-catkin-directory-in-ros
+    # https://answers.ros.org/question/206876/how-often-do-i-need-to-source-setupbash/
+    if ! grep -Fxq "source $HOME/$ros_ws/devel/setup.bash --extend" $HOME/.bashrc ; then
         echo "   - Add workspace ${green}$ROS_WS_NAME${reset} on .bashrc"
-        echo "source $HOME/$ros_ws/devel/setup.bash" >> $HOME/.bashrc
+        echo "source $HOME/$ros_ws/devel/setup.bash --extend" >> $HOME/.bashrc
     fi
     # Load locally on this script the source workspace
     source $HOME/$ros_ws/devel/setup.bash
@@ -119,6 +231,8 @@ ros()
             echo "export ROS_HOSTNAME=$HOSTNAME.local" >> $HOME/.bashrc
         fi
     fi
+    # Load locally on this script the source workspace
+    source /opt/ros/$DISTRO/setup.bash
     # TODO: Ask reload bashrc
 }
 
@@ -142,7 +256,11 @@ extra_scripts()
         echo "NOT_INSTALLED"
         return
     fi
-    if ! grep -Fxq "export PANTHER_TYPE=$PANTHER_TYPE" $HOME/.bashrc ; then
+    if ! grep -Fxq "export PANTHER_TYPE='$PANTHER_TYPE'" $HOME/.bashrc ; then
+        echo "NOT_INSTALLED"
+        return
+    fi
+    if ! grep -Fxq "export PANTHER_WS='$ROS_WS_NAME'" $HOME/.bashrc ; then
         echo "NOT_INSTALLED"
         return
     fi
@@ -290,10 +408,15 @@ main()
             echo "   - Add PATH=$(pwd)/bin\${PATH:+:\${PATH}} on .bashrc"
             echo "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" >> $HOME/.bashrc
         fi
-
-        if ! grep -Fxq "export PANTHER_TYPE=$PANTHER_TYPE" $HOME/.bashrc ; then
-            echo "   - Add PANTHER_TYPE=$PANTHER_TYPE on .bashrc"
-            echo "export PANTHER_TYPE=$PANTHER_TYPE" >> $HOME/.bashrc
+        # Type configuration
+        if ! grep -Fxq "export PANTHER_TYPE='$PANTHER_TYPE'" $HOME/.bashrc ; then
+            echo "   - Add PANTHER_TYPE='$PANTHER_TYPE' on .bashrc"
+            echo "export PANTHER_TYPE='$PANTHER_TYPE'" >> $HOME/.bashrc
+        fi
+        # Catkin workspace reference
+        if ! grep -Fxq "export PANTHER_WS='$ROS_WS_NAME'" $HOME/.bashrc ; then
+            echo "   - Add PANTHER_WS='$ROS_WS_NAME' on .bashrc"
+            echo "export PANTHER_WS='$ROS_WS_NAME'" >> $HOME/.bashrc
         fi
     fi
     
@@ -303,9 +426,20 @@ main()
         ros
     fi
 
+    # Detect opencv
+    if hash opencv_version 2>/dev/null; then
+        OPENCV_STATUS="$(opencv_version)"
+    else
+        OPENCV_STATUS="NOT_INSTALLED"
+        OPENCV_VERSION_CUDA="NO"
+    fi
+    # Get OpenCV major version
+    OPENCV_MAJOR=${OPENCV_STATUS%.*}
+    OPENCV_MAJOR=${OPENCV_MAJOR%.*}
+
     # Install ROS customization
     if [ $(ros_ws_status $CUSTOM_WS_NAME) = "NOT_INSTALLED" ] ; then
-        local rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther/master/$DISTRO.rosinstall"
+        local rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther/master/${DISTRO}_cv$OPENCV_MAJOR.rosinstall"
         # Run rosinstall uri
         echo "Install ${green}custom ROS${reset} workspace from ${bold}$rosinstall_uri${reset}"
         ros_ws $CUSTOM_WS_NAME $rosinstall_uri

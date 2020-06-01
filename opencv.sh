@@ -126,13 +126,13 @@ opencv_build()
             CMAKEFLAGS="$CMAKEFLAGS
 -D OPENCV_EXTRA_MODULES_PATH=$BUILD_FOLDER/opencv/opencv_contrib/modules"
         fi
-        if [ $JETSON_CUDNN != "NOT_INSTALLED" ] ; then
-            CUDNN_VERSION=${JETSON_CUDNN%.*}
-            CUDNN_VERSION=${CUDNN_VERSION%.*}
+        if [ $CUDNN_VERSION != "NOT_INSTALLED" ] ; then
+            CUDNN_VERSION_MAJOR=${CUDNN_VERSION%.*}
+            CUDNN_VERSION_MAJOR=${CUDNN_VERSION%.*}
             CMAKEFLAGS="$CMAKEFLAGS
 -D WITH_CUDNN=ON
 -D OPENCV_DNN_CUDA=ON
--D CUDNN_VERSION=$CUDNN_VERSION"
+-D CUDNN_VERSION=$CUDNN_VERSION_MAJOR"
         fi
         if [ $INSTALL_OPENCV_PYTHON2 == "YES" ] ; then
             CMAKEFLAGS="$CMAKEFLAGS

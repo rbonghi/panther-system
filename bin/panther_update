@@ -30,7 +30,7 @@ green=`tput setaf 2`
 reset=`tput sgr0`
 
 # Catkin main package
-ROS_WS_NAME="catkin_ws"
+ROS_WS_NAME=$PANTHER_WS
 
 update()
 {
@@ -91,6 +91,11 @@ main()
 	# Check if run in sudo
     if [[ `id -u` -eq 0 ]] ; then 
         echo "${red}Please don't run as root${reset}"
+        exit 1
+    fi
+    
+    if [ -z "$ROS_WS_NAME" ] ; then
+        echo "${red}Doesn't load Panther ROS variables!${reset}"
         exit 1
     fi
     
