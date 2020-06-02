@@ -35,6 +35,45 @@ DISTRO="melodic"
 CUSTOM_WS_NAME="ros_custom_ws"
 ROS_WS_NAME="ros_panther_ws"
 
+
+press_any_key()
+{
+    echo "Press any key to continue"
+    while [ true ] ; do
+        read -t 3 -n 1
+        if [ $? = 0 ] ; then
+            echo
+            return
+        else
+            echo "waiting for the keypress"
+        fi
+    done
+}
+
+
+
+vtk_install()
+{
+    # DO not use but download precompiled files!
+    cd git clone https://github.com/Kitware/VTK.git
+    cd VTK
+    git checkout v6.3.0
+    mkdir build
+    cd build
+    cmake -DVTK_Group_Qt=ON -DVTK_QT_VERSION=4 -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..
+    time make -j$(($NUM_CPU - 1))
+    
+    if [ $? -eq 0 ] ; then
+        echo "${green}CMake configuration make successful${reset}"
+    else
+        # Try to make again
+        echo "${red}CMake issues"
+        echo "Please check the configuration being used${reset}"
+        echo $CMAKEFLAGS
+        exit 1
+    fi
+}
+
 # Installer RTABmap
 # https://github.com/introlab/rtabmap
 # https://github.com/introlab/rtabmap/wiki/Installation
@@ -58,36 +97,33 @@ rtabmap_install()
     if [ "$PANTHER_TYPE" = "robot" ] ; then
         # Install VTK
         echo "Install ${green}VTK${reset}"
-        cd git clone https://github.com/Kitware/VTK.git
-        cd VTK
-        git checkout v6.3.0
-        mkdir build
-        cd build
-        cmake -DVTK_Group_Qt=ON -DVTK_QT_VERSION=4 -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..
-        time make -j$(($NUM_CPU - 1))
         
-        if [ $? -eq 0 ] ; then
-            echo "${green}CMake configuration make successful${reset}"
-        else
-            # Try to make again
-            echo "${red}CMake issues"
-            echo "Please check the configuration being used${reset}"
-            echo $CMAKEFLAGS
-            exit 1
-        fi
-
+        echo "Download ${green}VTK${reset} binaries"
+        wget https://github.com/introlab/rtabmap/files/3457605/vtk6.3.0-arm64-qt4-libs-cmake.zip
+        unzip vtk6.3.0-arm64-qt4-libs-cmake.zip
+        
+        press_any_key
+        
         # Remove Gt5 related VTK libraries
         sudo rm /usr/lib/aarch64-linux-gnu/libvtkGUISupportQt*
         sudo rm /usr/lib/aarch64-linux-gnu/libvtkRenderingQt*
         sudo rm /usr/lib/aarch64-linux-gnu/libvtkViewsQt*
         sudo rm /usr/lib/cmake/vtk-6.3/Modules/vtkGUISupportQtWebkit.cmake
+
+
         # Copy the newly compiled ones with Qt4 support
-        cd $rtabmap_folder/VTK/build/lib
+        cd $rtabmap_folder/vtk6.3.0-arm64-qt4-libs
         sudo cp libvtkGUISupportQt* /usr/lib/aarch64-linux-gnu/.
         sudo cp libvtkRenderingQt* /usr/lib/aarch64-linux-gnu/.
         sudo cp libvtkGUISupportQtSQL* /usr/lib/aarch64-linux-gnu/.
         sudo cp libvtkViewsQt* /usr/lib/aarch64-linux-gnu/.
+        
+        press_any_key
+        
         # Copy cmake modules
+        # make folder if does not exist
+        sudo mkdir -p /usr/lib/cmake/vtk-6.3/Modules/
+        
         sudo cp vtkGUISupportQt.cmake /usr/lib/cmake/vtk-6.3/Modules/.
         sudo cp vtkGUISupportQtOpenGL.cmake /usr/lib/cmake/vtk-6.3/Modules/.
         sudo cp vtkGUISupportQtSQL.cmake /usr/lib/cmake/vtk-6.3/Modules/. 
@@ -115,12 +151,17 @@ rtabmap_install()
     # https://github.com/borglab/gtsam
     # TODO: Check to add
 
+    press_any_key
 
     # Make Custom workspace before build
     echo "Make ROS custom workspace ${bold}$HOME/$CUSTOM_WS_NAME${reset}"
     mkdir -p $HOME/$CUSTOM_WS_NAME/src
     cd $HOME/$CUSTOM_WS_NAME
     catkin_make
+
+    sudo apt install -y ros-$DISTRO-pcl-ros ros-$DISTRO-octomap-ros ros-$DISTRO-tf-conversion ros-$DISTRO-eigen-conversion
+    
+    press_any_key
 
     # Clone, make and install rtabmap
     echo "Clone and install ${green}rtabmap${reset}"
@@ -141,6 +182,17 @@ rtabmap_install()
     fi
     
     make install # Sudo is not needed
+}
+
+rtabmap_status()
+{
+    local rtabmap_folder=$HOME/rtabmap
+    if [ -d "$rtabmap_folder" ] ; then
+        echo "OK"
+        return
+    fi
+    # Return not installed
+    echo "NOT_INSTALLED"
 }
 
 
@@ -286,7 +338,7 @@ recap()
         echo " 2. ROS ${green}$(ros_status)${reset} installed"
     fi
     # Rtabmap
-    if [ "A" != "B" ] ; then
+    if [ $(rtabmap_status) = "NOT_INSTALLED" ] ; then
         echo " 3. ${yellow}Install${reset} RTABmap"
         status=1
     else
