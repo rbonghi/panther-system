@@ -41,6 +41,12 @@ update()
     wstool merge -t "$path/src" $rosinstall
     # Update workspace
     wstool update -t "$path/src"
+    # Status update wstool
+    if [ $? -ne 0 ] ; then
+        # Try to make again
+        echo "${red}Please check  workspace status ${reset}"
+        exit 1
+    fi
     # Install all dependencies
     # http://wiki.ros.org/rosdep
     rosdep install --from-paths "$path/src" --ignore-src -r -y
