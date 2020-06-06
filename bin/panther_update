@@ -29,34 +29,9 @@ red=`tput setaf 1`
 green=`tput setaf 2`
 reset=`tput sgr0`
 
-# Catkin main package
-ROS_WS_NAME=$PANTHER_WS
 
-update()
-{
-    local rosinstall=$1
-    local THIS="$(pwd)"
-    local path="$HOME/$ROS_WS_NAME"
-    # Merge if there are update of repositories
-    wstool merge -t "$path/src" $rosinstall
-    # Update workspace
-    wstool update -t "$path/src"
-    # Status update wstool
-    if [ $? -ne 0 ] ; then
-        # Try to make again
-        echo "${red}Please check  workspace status ${reset}"
-        exit 1
-    fi
-    # Install all dependencies
-    # http://wiki.ros.org/rosdep
-    rosdep install --from-paths "$path/src" --ignore-src -r -y
-    # Go to catkin path
-    cd $path
-    # Catkin make all workspace
-    catkin_make
-    # Return to main path
-    cd $THIS
-}
+CUSTOM_WS_NAME="ros_custom_ws"
+
 
 usage()
 {
@@ -74,7 +49,10 @@ usage()
 
 main()
 {
+    local custom=false
     local rosinstall_file=""
+    # Catkin main package
+    local ROS_WS_NAME=$PANTHER_WS
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
@@ -85,6 +63,9 @@ main()
             -f|--file)
                 rosinstall_file=$2
                 shift 1
+                ;;
+            --custom)
+                custom=true
                 ;;
             *)
                 usage "[ERROR] Unknown option: $1"
@@ -104,9 +85,26 @@ main()
         echo "${red}Doesn't load Panther ROS variables!${reset}"
         exit 1
     fi
-    
+
+
+    # Install ROS customization
+    if $custom ; then
+        # Detect opencv
+        if hash opencv_version 2>/dev/null; then
+            OPENCV_STATUS="$(opencv_version)"
+        else
+            OPENCV_STATUS="NOT_INSTALLED"
+            OPENCV_VERSION_CUDA="NO"
+        fi
+        # Get OpenCV major version
+        OPENCV_MAJOR=${OPENCV_STATUS%.*}
+        OPENCV_MAJOR=${OPENCV_MAJOR%.*}
+        # Build rosinstall link
+        rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther/master/${ROS_DISTRO}_cv$OPENCV_MAJOR.rosinstall"
+        # Change ROS_WS_NAME
+        ROS_WS_NAME=$CUSTOM_WS_NAME
     # Check if rosinstall file is not empty
-    if [ ! -z $rosinstall_file ] ; then
+    elif [ ! -z $rosinstall_file ] ; then
         rosinstall_uri=$rosinstall_file
     # Extract rosinstall uri
     elif [ "$PANTHER_TYPE" = "sim" ] ; then
@@ -118,8 +116,37 @@ main()
         exit 1
     fi
 
-    # Run update function    
-    update $rosinstall_uri
+
+    # Request sudo password
+    sudo -v
+
+    # Run update function
+    local THIS="$(pwd)"
+    local path="$HOME/$ROS_WS_NAME"
+    
+    echo " ${bold}1.${reset} Get .rosinstall from ${bold}${green}$rosinstall_uri${reset}"
+    # Merge if there are update of repositories
+    wstool merge -t "$path/src" $rosinstall_uri
+    echo " ${bold}2.${reset} Update workspace ${bold}${green}$ROS_WS_NAME${reset}"
+    # Update workspace
+    wstool update -t "$path/src"
+    # Status update wstool
+    if [ $? -ne 0 ] ; then
+        # Try to make again
+        echo "${red}Please check  workspace status ${reset}"
+        exit 1
+    fi
+    # Install all dependencies
+    # http://wiki.ros.org/rosdep
+    echo " ${bold}3.${reset} Install all ${bold}dependencies${reset}"
+    rosdep install --from-paths "$path/src" --ignore-src -r -y
+    # Go to catkin path
+    cd $path
+    # Catkin make all workspace
+    echo " ${bold}4.${reset} ${bold}catkin_make${reset}"
+    catkin_make
+    # Return to main path
+    cd $THIS
 }
 
 main $@
