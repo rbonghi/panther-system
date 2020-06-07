@@ -44,7 +44,7 @@ sudo_me()
         touch $sudo_stat
         # Loop script
         while [ -f $sudo_stat ]; do
-            echo "checking $$ ...$(date)"
+            # echo "checking $$ ...$(date)"
             sudo -v
             sleep 5
         done &
@@ -91,7 +91,7 @@ custom_pks()
 }
 
 
-usage()
+update_usage()
 {
 	if [ "$1" != "" ]; then
 		echo "${red}$1${reset}"
@@ -105,17 +105,16 @@ usage()
     echo "   -f|--file [FILE] | File to read"
 }
 
-main()
+
+update()
 {
     local custom=false
     local rosinstall_file=""
-    # Catkin main package
-    local ROS_WS_NAME=$PANTHER_WS
 	# Decode all information from startup
     while [ -n "$1" ]; do
         case "$1" in
             -h|--help) # Load help
-                usage
+                update_usage
                 exit 0
                 ;;
             -f|--file)
@@ -126,24 +125,12 @@ main()
                 custom=true
                 ;;
             *)
-                usage "[ERROR] Unknown option: $1"
+                update_usage "[ERROR] Unknown option: $1"
                 exit 1
                 ;;
         esac
             shift 1
     done
-
-	# Check if run in sudo
-    if [[ `id -u` -eq 0 ]] ; then 
-        echo "${red}Please don't run as root${reset}"
-        exit 1
-    fi
-    
-    if [ -z "$ROS_WS_NAME" ] ; then
-        echo "${red}Doesn't load Panther ROS variables!${reset}"
-        exit 1
-    fi
-
 
     # Install ROS customization
     if $custom ; then
@@ -170,7 +157,7 @@ main()
     elif [ "$PANTHER_TYPE" = "robot" ] ; then
         rosinstall_uri="https://raw.githubusercontent.com/rpanther/panther_robot/master/robot.rosinstall"
     else
-        usage "[ERROR] Unknown config: $PANTHER_TYPE"
+        update_usage "[ERROR] Unknown config: $PANTHER_TYPE"
         exit 1
     fi
 
@@ -216,6 +203,65 @@ main()
     # Disable sudo me
     sudo_me false
 }
+
+
+usage()
+{
+	if [ "$1" != "" ]; then
+		echo "${red}$1${reset}"
+	fi
+	
+    local name=$(basename ${0})
+    echo "Robot ROS managager. Update workspaces and status. (Works with wstool)"
+    echo ""
+    echo "Commands:"
+    echo "        $name update      Update all ROS workspace"
+    echo "        $name info        Info about workspace"
+}
+
+
+main()
+{
+    local option=$1
+    # Catkin main package
+    local ROS_WS_NAME=$PANTHER_WS
+
+    # Check if option is in list
+    local options=("update" "info")
+    local error=true
+    for item in ${options[@]} ; do
+        if [ "$item" == "$option" ]; then
+            error=false
+            break
+        fi
+    done
+    if $error ; then
+        usage $option
+        exit 1
+    fi
+    
+	# Check if run in sudo
+    if [[ `id -u` -eq 0 ]] ; then 
+        echo "${red}Please don't run as root${reset}"
+        exit 1
+    fi
+    
+    if [ -z "$ROS_WS_NAME" ] ; then
+        echo "${red}Doesn't load Panther ROS variables!${reset}"
+        exit 1
+    fi
+    
+    # Load all arguments except the first one
+    local arguments=${@:2}
+    # Options
+    if [ $option = "update" ] ; then
+        update $arguments
+    elif [ $option = "info" ] ; then
+        # Update workspace
+        wstool info -t "$HOME/$ROS_WS_NAME/src"
+    fi
+}
+
 
 main $@
 exit 0
