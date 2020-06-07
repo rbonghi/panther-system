@@ -32,14 +32,57 @@ yellow=`tput setaf 3`
 reset=`tput sgr0`
 
 
+usage()
+{
+	if [ "$1" != "" ]; then
+		echo "${red}$1${reset}"
+	fi
+	
+    local name=$(basename ${0})
+    echo "Robot installer. Install all scripts and configurations"
+    echo ""
+    echo "Commands:"
+    echo "        $name board      Install all board drivers"
+    echo "        $name opencv     Install OpenCV"
+    echo "        $name ros        Install ROS and workspaces"
+}
+
+
 main()
 {
-    echo "panther-system installer"
-    echo
+    local option=$1
+    # Catkin main package
+    local ROS_WS_NAME=$PANTHER_WS
+
+    # Check if option is in list
+    local options=("board" "opencv" "ros")
+    local error=true
+    for item in ${options[@]} ; do
+        if [ "$item" == "$option" ]; then
+            error=false
+            break
+        fi
+    done
+    if $error ; then
+        if [ -z $option ] ; then
+            usage
+        else
+            usage "[ERROR] Unknown option: $option"
+        fi
+        exit 1
+    fi
     
-    echo "------ ROS status ------"
-    sh scripts/ros.sh --status
-    echo "------------------------"
+    
+    # Load all arguments except the first one
+    local arguments=${@:2}
+    # Options
+    if [ $option = "board" ] ; then
+        bash scripts/board.sh $arguments
+    elif [ $option = "opencv" ] ; then
+        bash scripts/opencv.sh $arguments
+    elif [ $option = "ros" ] ; then
+        bash scripts/ros.sh $arguments
+    fi
 }
 
 
