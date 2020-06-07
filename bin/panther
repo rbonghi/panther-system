@@ -27,6 +27,7 @@
 bold=`tput bold`
 red=`tput setaf 1`
 green=`tput setaf 2`
+yellow=`tput setaf 3`
 reset=`tput sgr0`
 
 
@@ -96,10 +97,9 @@ update_usage()
 	if [ "$1" != "" ]; then
 		echo "${red}$1${reset}"
 	fi
-	
+	local name=$(basename ${0})
     echo "updater. Update workspace, repositories and dependencies"
-    echo "Usage:"
-    echo "$0 [options]"
+    echo "${bold}$name update${reset} [options]"
     echo "options,"
     echo "   -h|--help        | This help"
     echo "   -f|--file [FILE] | File to read"
@@ -237,7 +237,7 @@ main()
         fi
     done
     if $error ; then
-        usage $option
+        usage "[ERROR] Unknown option: $option"
         exit 1
     fi
     
@@ -261,7 +261,7 @@ main()
         # Update workspace
         wstool info -t "$HOME/$ROS_WS_NAME/src"
     elif [ $option = "activate" ] ; then
-        echo "Please use:"
+        echo "${yellow}Please run:${reset}"
         echo "source panther_activate"
     fi
 }
