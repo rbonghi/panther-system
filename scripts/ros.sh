@@ -35,6 +35,11 @@ DISTRO="melodic"
 CUSTOM_WS_NAME="ros_custom_ws"
 ROS_WS_NAME="ros_panther_ws"
 
+# Main configuration folder
+#CONFIG_FOLDER="$HOME/.bashrc"
+CONFIG_FOLDER="/opt/panther"
+CONFIG_FILE="panther.bash"
+
 
 press_any_key()
 {
@@ -228,9 +233,9 @@ ros_ws()
     # --extend reference:
     # https://stackoverflow.com/questions/26410578/number-of-catkin-directory-in-ros
     # https://answers.ros.org/question/206876/how-often-do-i-need-to-source-setupbash/
-    if ! grep -Fxq "source $HOME/$ros_ws/devel/setup.bash --extend" $HOME/.bashrc ; then
-        echo "   - Add workspace ${green}$ROS_WS_NAME${reset} on .bashrc"
-        echo "source $HOME/$ros_ws/devel/setup.bash --extend" >> $HOME/.bashrc
+    if ! grep -Fxq "source $HOME/$ros_ws/devel/setup.bash --extend" $CONFIG_FOLDER/$CONFIG_FILE ; then
+        echo "   - Add workspace ${green}$ROS_WS_NAME${reset} on $CONFIG_FOLDER/$CONFIG_FILE"
+        echo "source $HOME/$ros_ws/devel/setup.bash --extend" >> $CONFIG_FOLDER/$CONFIG_FILE
     fi
     # Load locally on this script the source workspace
     source $HOME/$ros_ws/devel/setup.bash
@@ -303,16 +308,35 @@ ros_status()
 
 extra_scripts()
 {
+    # Check ENV folder and config
+    if [ ! -d $CONFIG_FOLDER ] ; then
+        echo "NOT_INSTALLED"
+        return
+    fi
+    if [ ! -f $CONFIG_FOLDER/$CONFIG_FILE ] ; then
+        echo "NOT_INSTALLED"
+        return
+    fi
     # Add environment variables on bashrc
-    if ! grep -Fxq "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" $HOME/.bashrc ; then
+    if ! grep -Fxq "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" $CONFIG_FOLDER/$CONFIG_FILE ; then
         echo "NOT_INSTALLED"
         return
     fi
-    if ! grep -Fxq "export PANTHER_TYPE='$PANTHER_TYPE'" $HOME/.bashrc ; then
+    if ! grep -Fxq "export PANTHER_TYPE='$PANTHER_TYPE'" $CONFIG_FOLDER/$CONFIG_FILE ; then
         echo "NOT_INSTALLED"
         return
     fi
-    if ! grep -Fxq "export PANTHER_WS='$ROS_WS_NAME'" $HOME/.bashrc ; then
+    if ! grep -Fxq "export PANTHER_WS='$ROS_WS_NAME'" $CONFIG_FOLDER/$CONFIG_FILE ; then
+        echo "NOT_INSTALLED"
+        return
+    fi
+    # Add environment variables on bashrc
+    if ! grep -Fxq "source /opt/ros/$DISTRO/setup.bash" $CONFIG_FOLDER/$CONFIG_FILE ; then
+        echo "NOT_INSTALLED"
+        return
+    fi
+    # Panther config 
+    if ! grep -Fxq "source $CONFIG_FOLDER/$CONFIG_FILE" $HOME/.bashrc ; then
         echo "NOT_INSTALLED"
         return
     fi
@@ -473,21 +497,43 @@ main()
     sudo -v
 
     # Install Panther scripts
-    if [ "NOT_INSTALLED" = "NOT_INSTALLED" ] && ( [ "$input" = "1" ] || $INSTALL_ALL ] ) ; then
+    if [ $(extra_scripts) = "NOT_INSTALLED" ] && ( [ "$input" = "1" ] || $INSTALL_ALL ] ) ; then
+        if [ ! -d $CONFIG_FOLDER ] ; then
+            echo "   - Make Panther folder $CONFIG_FOLDER"
+            sudo mkdir -p $CONFIG_FOLDER
+        fi
+        # Change howner
+        sudo chown -R $USER:$USER $CONFIG_FOLDER
+        # Make config file
+        if [ ! -f $CONFIG_FOLDER/$CONFIG_FILE ] ; then
+            echo "   - Make Panther config file $CONFIG_FILE in $CONFIG_FOLDER"
+            #touch $CONFIG_FOLDER/$CONFIG_FILE
+            echo "#!/bin/bash" > $CONFIG_FOLDER/$CONFIG_FILE
+        fi
         # Add this folder in bashrc
-        if ! grep -Fxq "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" $HOME/.bashrc ; then
-            echo "   - Add PATH=$(pwd)/bin\${PATH:+:\${PATH}} on .bashrc"
-            echo "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" >> $HOME/.bashrc
+        if ! grep -Fxq "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" $CONFIG_FOLDER/$CONFIG_FILE ; then
+            echo "   - Add PATH=$(pwd)/bin\${PATH:+:\${PATH}} on $CONFIG_FOLDER/$CONFIG_FILE"
+            echo "export PATH=$(pwd)/bin\${PATH:+:\${PATH}}" >> $CONFIG_FOLDER/$CONFIG_FILE
         fi
         # Type configuration
-        if ! grep -Fxq "export PANTHER_TYPE='$PANTHER_TYPE'" $HOME/.bashrc ; then
-            echo "   - Add PANTHER_TYPE='$PANTHER_TYPE' on .bashrc"
-            echo "export PANTHER_TYPE='$PANTHER_TYPE'" >> $HOME/.bashrc
+        if ! grep -Fxq "export PANTHER_TYPE='$PANTHER_TYPE'" $CONFIG_FOLDER/$CONFIG_FILE ; then
+            echo "   - Add PANTHER_TYPE='$PANTHER_TYPE' on $CONFIG_FOLDER/$CONFIG_FILE"
+            echo "export PANTHER_TYPE='$PANTHER_TYPE'" >> $CONFIG_FOLDER/$CONFIG_FILE
         fi
         # Catkin workspace reference
-        if ! grep -Fxq "export PANTHER_WS='$ROS_WS_NAME'" $HOME/.bashrc ; then
-            echo "   - Add PANTHER_WS='$ROS_WS_NAME' on .bashrc"
-            echo "export PANTHER_WS='$ROS_WS_NAME'" >> $HOME/.bashrc
+        if ! grep -Fxq "export PANTHER_WS='$ROS_WS_NAME'" $CONFIG_FOLDER/$CONFIG_FILE ; then
+            echo "   - Add PANTHER_WS='$ROS_WS_NAME' on $CONFIG_FOLDER/$CONFIG_FILE"
+            echo "export PANTHER_WS='$ROS_WS_NAME'" >> $CONFIG_FOLDER/$CONFIG_FILE
+        fi
+        # ROS main sources
+        if ! grep -Fxq "source /opt/ros/$DISTRO/setup.bash" $CONFIG_FOLDER/$CONFIG_FILE ; then
+            echo "   - Add ROS $DISTRO source to ${green}$CONFIG_FOLDER/$CONFIG_FILE${reset}"
+            echo "source /opt/ros/$DISTRO/setup.bash" >> $CONFIG_FOLDER/$CONFIG_FILE
+        fi
+        # Panther config 
+        if ! grep -Fxq "source $CONFIG_FOLDER/$CONFIG_FILE" $HOME/.bashrc ; then
+            echo "   - Add new source $CONFIG_FOLDER/$CONFIG_FILE on .bashrc"
+            echo "source $CONFIG_FOLDER/$CONFIG_FILE" >> $HOME/.bashrc
         fi
     fi
     
