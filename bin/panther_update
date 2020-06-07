@@ -32,6 +32,64 @@ reset=`tput sgr0`
 
 CUSTOM_WS_NAME="ros_custom_ws"
 
+# Modules check sudo
+# https://serverfault.com/questions/266039/temporarily-increasing-sudos-timeout-for-the-duration-of-an-install-script
+sudo_me()
+{
+    local start=$1
+    # write sudo me file
+    local sudo_stat="/tmp/panther_sudo_status"
+    # No sudo loop
+    if $start ; then
+        touch $sudo_stat
+        # Loop script
+        while [ -f $sudo_stat ]; do
+            echo "checking $$ ...$(date)"
+            sudo -v
+            sleep 5
+        done &
+    else
+        if [ -f $sudo_stat ] ; then
+            rm $sudo_stat
+        fi
+    fi
+}
+
+
+# Update all custom packages
+custom_pks()
+{
+
+    local NUM_CPU=$(nproc)
+    local rtabmap_folder=$HOME/rtabmap
+    # Run update function
+    local THIS="$(pwd)"
+
+    echo " ${bold}a.${reset} Update ${bold}rtabmap${reset}"
+    # https://github.com/introlab/rtabmap/wiki/Installation#update-code    
+    # Go to rtabmap folder
+    cd $rtabmap_folder/rtabmap
+    git pull
+    
+    # Move to build folder
+    cd build
+    # cmake with flags
+    cmake -DRTABMAP_QT_VERSION=4 -DCMAKE_INSTALL_PREFIX=~/$CUSTOM_WS_NAME/devel ..    
+    # Make
+    time make -j$(($NUM_CPU - 1))
+    # Status update wstool
+    if [ $? -ne 0 ] ; then
+        # Try to make again
+        echo "${red}Please check build status ${reset}"
+        sudo_me false
+        exit 1
+    fi
+    # Make install
+    sudo make install
+    # Return to main path
+    cd $THIS
+}
+
 
 usage()
 {
@@ -119,6 +177,12 @@ main()
 
     # Request sudo password
     sudo -v
+    sudo_me true
+    
+    if $custom ; then
+        # Run custom packages update
+        custom_pks
+    fi
 
     # Run update function
     local THIS="$(pwd)"
@@ -133,7 +197,8 @@ main()
     # Status update wstool
     if [ $? -ne 0 ] ; then
         # Try to make again
-        echo "${red}Please check  workspace status ${reset}"
+        echo "${red}Please check workspace status ${reset}"
+        sudo_me false
         exit 1
     fi
     # Install all dependencies
@@ -147,6 +212,9 @@ main()
     catkin_make
     # Return to main path
     cd $THIS
+
+    # Disable sudo me
+    sudo_me false
 }
 
 main $@
