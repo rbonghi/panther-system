@@ -237,7 +237,11 @@ main()
         fi
     done
     if $error ; then
-        usage "[ERROR] Unknown option: $option"
+        if [ -z $option ] ; then
+            usage
+        else
+            usage "[ERROR] Unknown option: $option"
+        fi
         exit 1
     fi
     
@@ -259,6 +263,7 @@ main()
         update $arguments
     elif [ $option = "info" ] ; then
         # Update workspace
+        # https://www.systutorials.com/docs/linux/man/1-wstool/
         wstool info -t "$HOME/$ROS_WS_NAME/src"
     elif [ $option = "activate" ] ; then
         echo "${yellow}Please run:${reset}"
