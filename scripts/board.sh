@@ -210,11 +210,6 @@ main()
     if [ "$input" = "3" ] || $INSTALL_ALL ] ; then
         zed
     fi
-
-    if [ -f /var/run/reboot-required ] ; then
-        # After install require reboot
-        echo "${red}*** System Restart Required ***${reset}"
-    fi
 }
 
 

@@ -83,6 +83,11 @@ main()
     elif [ $option = "ros" ] ; then
         bash scripts/ros.sh $arguments
     fi
+    
+    if [ -f /var/run/reboot-required ] ; then
+        # After install require reboot
+        echo "${red}*** System Restart Required ***${reset}"
+    fi
 }
 
 
