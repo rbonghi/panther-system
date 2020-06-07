@@ -217,6 +217,7 @@ usage()
     echo "Commands:"
     echo "        $name update      Update all ROS workspace"
     echo "        $name info        Info about workspace"
+    echo "        $name activate    Set ROS_MASTER_URI and ROS_HOSTNAME to robot"
 }
 
 
@@ -227,7 +228,7 @@ main()
     local ROS_WS_NAME=$PANTHER_WS
 
     # Check if option is in list
-    local options=("update" "info")
+    local options=("update" "info" "activate")
     local error=true
     for item in ${options[@]} ; do
         if [ "$item" == "$option" ]; then
@@ -259,6 +260,9 @@ main()
     elif [ $option = "info" ] ; then
         # Update workspace
         wstool info -t "$HOME/$ROS_WS_NAME/src"
+    elif [ $option = "activate" ] ; then
+        echo "Please use:"
+        echo "source panther_activate"
     fi
 }
 
